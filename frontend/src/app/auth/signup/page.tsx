@@ -1,0 +1,197 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Mail, Lock, User, Brain, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/shared/Button'
+import { api } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
+import toast from 'react-hot-toast'
+
+export default function SignupPage() {
+  const router = useRouter()
+  const { setUser, setTokens } = useAuthStore()
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'teacher' as 'teacher' | 'student',
+  })
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.email || !formData.password || !formData.fullName) {
+      toast.error('Please fill in all fields')
+      return
+    }
+
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await api.signup(formData)
+      setUser(response.user)
+      setTokens(response.tokens)
+      toast.success('Account created successfully!')
+      router.push('/dashboard')
+    } catch (error: any) {
+      toast.error(error.message || 'Signup failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Link href="/" className="flex items-center justify-center gap-2 mb-8">
+            <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center border-2 border-primary-500/50">
+              <Brain className="w-6 h-6 text-primary-500" />
+            </div>
+            <span className="text-2xl font-bold text-dark-50">Aura</span>
+          </Link>
+
+          <div className="card p-8">
+            <h1 className="text-3xl font-bold text-dark-50 mb-2">
+              Create Account
+            </h1>
+            <p className="text-dark-200 mb-8">
+              Join Aura and transform your teaching experience
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="fullName" className="block text-sm font-medium text-dark-200 mb-2">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-300" />
+                  <input
+                    id="fullName"
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="input pl-11"
+                    placeholder="John Doe"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-dark-200 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-300" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="input pl-11"
+                    placeholder="you@example.com"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-dark-200 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-300" />
+                  <input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="input pl-11"
+                    placeholder="Minimum 6 characters"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  I am a
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'teacher' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.role === 'teacher'
+                        ? 'border-primary-500 bg-dark-800'
+                        : 'border-dark-700 hover:border-dark-600'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    <div className="text-center">
+                      <div className="font-medium text-dark-50">Teacher</div>
+                      <div className="text-sm text-dark-200 mt-1">Create and manage sessions</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'student' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.role === 'student'
+                        ? 'border-primary-500 bg-dark-800'
+                        : 'border-dark-700 hover:border-dark-600'
+                    }`}
+                    disabled={isLoading}
+                  >
+                    <div className="text-center">
+                      <div className="font-medium text-dark-50">Student</div>
+                      <div className="text-sm text-dark-200 mt-1">Join and learn</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                isLoading={isLoading}
+                className="w-full"
+                rightIcon={<ArrowRight className="w-5 h-5" />}
+              >
+                Create Account
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-dark-200">
+                Already have an account?{' '}
+                <Link href="/auth/login" className="text-primary-500 hover:text-primary-400 font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-dark-300 mt-8">
+            By continuing, you agree to our Terms of Service and Privacy Policy
+          </p>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
