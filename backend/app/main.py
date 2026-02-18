@@ -4,11 +4,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 import structlog
 import socketio
-import asyncio
 
 from .core.config import get_settings
 from .core.database import init_db
-from .core.redis import close_redis
 from .api import auth, sessions, quiz
 from .websocket.connection import sio
 from .workers.manager import worker_manager
@@ -21,15 +19,10 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     logger.info("Starting Aura API", version=settings.VERSION, environment=settings.ENVIRONMENT)
     init_db()
-    
-    # Start background workers (this returns immediately after starting them)
     await worker_manager.start_all()
-    
     yield
-    
     logger.info("Shutting down Aura API")
     await worker_manager.stop_all()
-    await close_redis()
 
 
 app = FastAPI(
@@ -57,11 +50,7 @@ app.include_router(quiz.router, prefix="/api/quiz", tags=["Quizzes"])
 
 @app.get("/")
 async def root():
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.VERSION,
-        "status": "operational",
-    }
+    return {"name": settings.APP_NAME, "version": settings.VERSION, "status": "operational"}
 
 
 @app.get("/health")
