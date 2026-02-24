@@ -178,37 +178,34 @@ export default function ClassroomPage() {
 
   return (
     <div className="h-screen flex flex-col bg-dark-900">
-      <header className="h-14 border-b border-dark-700 bg-dark-800 flex items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+      <header className="h-12 border-b border-dark-700 bg-dark-800 flex items-center justify-between px-3">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
-            <Home className="w-4 h-4 mr-2" />
+            <Home className="w-4 h-4 mr-1.5" />
             <span className="text-dark-50">Dashboard</span>
           </Button>
-          <div className="h-6 w-px bg-dark-700" />
-          <div className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-primary-500" />
-            <span className="font-medium text-dark-50">{currentSession?.subject}</span>
+          <div className="h-5 w-px bg-dark-700" />
+          <div className="flex items-center gap-1.5">
+            <Brain className="w-4 h-4 text-primary-500" />
+            <span className="font-medium text-dark-50 text-sm">{currentSession?.subject}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isRecording && <VoiceIndicator isActive={audioEnabled} />}
-          
-          <div className="h-6 w-px bg-dark-600" />
-          
+          <div className="h-5 w-px bg-dark-600" />
           {!isRecording ? (
-            <Button variant="primary" size="md" onClick={handleStartRecording}>
-              <Play className="w-4 h-4 mr-2" />
+            <Button variant="primary" size="sm" onClick={handleStartRecording}>
+              <Play className="w-3.5 h-3.5 mr-1.5" />
               Start
             </Button>
           ) : (
-            <Button variant="secondary" size="md" onClick={handleStopRecording}>
-              <Square className="w-4 h-4 mr-2" />
+            <Button variant="secondary" size="sm" onClick={handleStopRecording}>
+              <Square className="w-3.5 h-3.5 mr-1.5" />
               Pause
             </Button>
           )}
-
-          <Button variant="outline" size="md" onClick={handleEndSession}>
+          <Button variant="outline" size="sm" onClick={handleEndSession}>
             End Session
           </Button>
         </div>
@@ -224,33 +221,34 @@ export default function ClassroomPage() {
         )}
       </div>
 
-      <footer className="h-16 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-6">
-        <div className="flex items-center gap-4 text-sm text-dark-200">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+      <footer className="h-12 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-3">
+        <div className="flex items-center gap-3 text-xs text-dark-200">
+          <div className="flex items-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
           </div>
           <div>Tokens: {currentSession?.activeBufferTokens.toLocaleString() || 0} / 10,000</div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowTranscript(!showTranscript)}
-            className="relative"
+            className="flex items-center"
           >
-            <Mic className="w-4 h-4 mr-2" />
+            <Mic className="w-3.5 h-3.5 mr-1.5" />
             Transcript
-            {transcriptEntries.length > 0 && (
-              <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {transcriptEntries.length}
-              </span>
-            )}
+            <span className="relative flex h-2 w-2 ml-2 flex-shrink-0 self-center">
+              {isRecording && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-500 opacity-75" />
+              )}
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
+            </span>
           </Button>
-          
-          <span className="text-sm text-dark-200">
-            Press Space or say "Hey Aura" to give commands
+
+          <span className="text-xs text-dark-200">
+            Say "Hey Aura" to give commands
           </span>
         </div>
       </footer>

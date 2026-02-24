@@ -33,7 +33,7 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
   const finalEntries = entries.filter(e => e.id !== 'live-interim')
 
   return (
-    <div className="fixed bottom-20 right-6 w-96 max-h-[520px] flex flex-col z-50 rounded-xl border border-dark-700 bg-dark-800 shadow-2xl overflow-hidden">
+    <div className="fixed bottom-20 right-6 w-96 max-h-[520px] flex flex-col z-[9999] rounded-xl border border-dark-700 bg-dark-800 shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
         <div className="flex items-center gap-2">
