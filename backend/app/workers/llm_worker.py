@@ -62,7 +62,7 @@ class LLMWorker:
             finally:
                 db.close()
 
-            # Send directly via WebSocket — no Redis needed
+            # Send directly via WebSocket
             if sid:
                 from ..websocket.connection import send_to_client
                 await send_to_client(sid, 'command_response', {

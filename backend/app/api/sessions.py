@@ -7,7 +7,7 @@ from uuid import UUID
 
 from ..core.database import get_db
 from ..core.security import get_current_teacher
-from ..models import User, Session as SessionModel, SessionStatus, Command
+from ..models import User, Session as SessionModel, SessionStatus, Command, Transcript
 
 router = APIRouter()
 
@@ -190,6 +190,37 @@ async def delete_session(
     
     db.delete(session)
     db.commit()
+
+
+@router.get("/{session_id}/transcripts")
+async def get_session_transcripts(
+    session_id: UUID,
+    current_user: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.teacher_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    transcripts = (
+        db.query(Transcript)
+        .filter(Transcript.session_id == session_id)
+        .order_by(Transcript.timestamp)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(t.id),
+            "text": t.text,
+            "timestamp": t.timestamp.isoformat(),
+        }
+        for t in transcripts
+    ]
 
 
 @router.get("/{session_id}/commands")

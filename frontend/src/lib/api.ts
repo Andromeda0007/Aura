@@ -3,7 +3,6 @@ import type {
   User, 
   Session, 
   Quiz, 
-  QuizAttempt, 
   LoginCredentials, 
   SignupData, 
   AuthTokens,
@@ -151,21 +150,13 @@ class APIClient {
     return response.data
   }
 
-  async submitQuizAttempt(shareCode: string, answers: number[], studentName?: string): Promise<QuizAttempt> {
-    const response = await this.client.post(`/quiz/${shareCode}/submit`, {
-      answers,
-      student_name: studentName,
-    })
-    return response.data
-  }
-
-  async getQuizResults(shareCode: string) {
-    const response = await this.client.get(`/quiz/${shareCode}/results`)
-    return response.data
-  }
-
   async getSessionCommands(sessionId: string) {
     const response = await this.client.get(`/sessions/${sessionId}/commands`)
+    return response.data
+  }
+
+  async getSessionTranscripts(sessionId: string): Promise<{ id: string; text: string; timestamp: string }[]> {
+    const response = await this.client.get(`/sessions/${sessionId}/transcripts`)
     return response.data
   }
 }

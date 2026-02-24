@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Tldraw, Editor, exportToBlob } from '@tldraw/tldraw'
+import { Tldraw, Editor, exportToBlob, getSnapshot, loadSnapshot } from '@tldraw/tldraw'
 import '@tldraw/tldraw/tldraw.css'
 import { wsClient } from '@/lib/websocket'
 
@@ -10,17 +10,45 @@ interface WhiteboardCanvasProps {
   isRecording: boolean
 }
 
+const storageKey = (id: string) => `aura-whiteboard-${id}`
+
 export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasProps) {
   const [editor, setEditor] = useState<Editor | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const intervalTimer = useRef<NodeJS.Timeout | null>(null)
 
-  // Screenshot every 30 seconds — simple, no activity tracking
+  const saveState = (e: Editor) => {
+    try {
+      const snapshot = getSnapshot(e.store)
+      localStorage.setItem(storageKey(sessionId), JSON.stringify(snapshot))
+    } catch (err) {
+      console.warn('Could not save whiteboard state:', err)
+    }
+  }
+
+  // Restore saved state when editor mounts
+  const handleMount = (e: Editor) => {
+    setEditor(e)
+    e.user.updateUserPreferences({ colorScheme: 'dark' })
+
+    try {
+      const saved = localStorage.getItem(storageKey(sessionId))
+      if (saved) {
+        loadSnapshot(e.store, JSON.parse(saved))
+        console.log('📂 Whiteboard state restored')
+      }
+    } catch (err) {
+      console.warn('Could not restore whiteboard state:', err)
+    }
+  }
+
+  // Screenshot + save every 30s during recording
   useEffect(() => {
     if (!editor || !isRecording) return
 
     intervalTimer.current = setInterval(() => {
       console.log('📸 30s snapshot...')
+      saveState(editor)
       captureSnapshot()
     }, 30000)
 
@@ -29,29 +57,32 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
     }
   }, [editor, isRecording, sessionId])
 
+  // Save on unmount
+  useEffect(() => {
+    if (!editor) return
+    return () => { saveState(editor) }
+  }, [editor])
+
   const captureSnapshot = async () => {
     if (!editor) return
 
     try {
       const shapeIds = Array.from(editor.getCurrentPageShapeIds())
-
       let imageData: string
 
       if (shapeIds.length === 0) {
-        // Empty canvas — blank placeholder image
         const canvas = document.createElement('canvas')
         canvas.width = 1280
         canvas.height = 720
         const ctx = canvas.getContext('2d')!
-        ctx.fillStyle = '#ffffff'
+        ctx.fillStyle = '#1B1B1F'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.fillStyle = '#aaaaaa'
+        ctx.fillStyle = '#555'
         ctx.font = '24px sans-serif'
         ctx.fillText('(empty canvas)', 40, 40)
         imageData = canvas.toDataURL('image/png')
-        console.log('📷 Empty canvas captured as blank image')
+        console.log('📷 Empty canvas captured')
       } else {
-        // Use tldraw's own exporter — handles embedded images & SVG quirks correctly
         const blob = await exportToBlob({
           editor,
           ids: shapeIds,
@@ -68,7 +99,6 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
       const sizeKB = (imageData.length / 1024).toFixed(1)
       console.log(`✅ Whiteboard captured (${sizeKB} KB), sending to backend...`)
 
-      // Only send image + minimal metadata (not full tldraw state which can be huge)
       wsClient.sendCanvasSnapshot(sessionId, null, imageData, pageNumber)
     } catch (error) {
       console.error('❌ Snapshot failed:', error)
@@ -76,12 +106,8 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
   }
 
   return (
-    <div className="w-full h-full">
-      <Tldraw
-        onMount={setEditor}
-        autoFocus
-        hideUi={false}
-      />
+    <div className="w-full h-full" data-color-mode="dark">
+      <Tldraw onMount={handleMount} autoFocus hideUi={false} />
     </div>
   )
 }

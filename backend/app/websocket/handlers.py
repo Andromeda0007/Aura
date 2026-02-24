@@ -18,7 +18,7 @@ async def handle_audio_chunk(sid: str, data: dict):
     logger.info("🎧 Audio chunk received, processing directly", 
                 session_id=session_id, chunk_id=chunk_id)
 
-    # Process directly — no Redis queue needed
+    # Process directly
     from ..workers.stt_worker import STTWorker
     worker = STTWorker()
     asyncio.create_task(worker.process_audio({
@@ -44,7 +44,7 @@ async def handle_canvas_snapshot(sid: str, data: dict):
     logger.info("📸 Canvas snapshot received, processing directly",
                 session_id=session_id, page=page_number)
 
-    # Process directly — no Redis queue needed
+    # Process directly
     from ..workers.vision_worker import VisionWorker
     worker = VisionWorker()
     asyncio.create_task(worker.process_image({

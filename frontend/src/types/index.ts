@@ -105,14 +105,6 @@ export interface QuizQuestion {
   explanation?: string
 }
 
-export interface QuizAttempt {
-  id: string
-  quizId: string
-  studentName?: string
-  answers: number[]
-  score: number
-  submittedAt: string
-}
 
 export interface WSMessage {
   type: WSMessageType

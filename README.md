@@ -16,8 +16,6 @@ An AI-powered smartboard assistant that transcribes speech in real-time, capture
 | Storage | Local filesystem (Images + Transcripts folders) |
 | Infra | Docker, Docker Compose |
 
-Redis has been intentionally removed — all processing is direct and in-memory, which is sufficient for 2-3 concurrent sessions.
-
 ---
 
 ## Architecture
@@ -212,17 +210,14 @@ GET   /api/quiz/{code}/results
 
 ## Key Design Decisions
 
-**No Redis** — Originally designed with Redis Streams for async processing. Removed because:
-- Direct `asyncio.create_task()` calls are sufficient for 2-3 concurrent sessions
-- Removes a dependency and operational complexity
-- Simpler to reason about for a demo
+**Direct async processing** — All task handling uses `asyncio.create_task()` directly. No message queue needed for 2-3 concurrent sessions.
 
-**Browser STT over Whisper** — Web Speech API (Chrome's built-in) for live transcription instead of local Whisper because:
-- No mic conflict with other audio capture
+**Browser STT over Whisper** — Web Speech API (Chrome's built-in) for live transcription because:
 - Zero latency (results appear as you speak)
-- Whisper doesn't support streaming (batch only)
+- No batch processing delay
+- Native browser support, no extra dependencies
 
-**In-memory context buffer** — `context_manager.py` uses a Python dict instead of Redis lists. Resets on restart, fine for demo use.
+**In-memory context buffer** — `context_manager.py` uses a Python dict for the active context window. Resets on server restart, fine for demo use.
 
 ---
 

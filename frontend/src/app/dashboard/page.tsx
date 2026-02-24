@@ -22,18 +22,19 @@ import toast from "react-hot-toast";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, logout, isAuthenticated, _hasHydrated } = useAuthStore();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
+    if (!_hasHydrated) return   // wait for localStorage to rehydrate
     if (!isAuthenticated) {
       router.push("/auth/login");
       return;
     }
     fetchSessions();
-  }, [isAuthenticated]);
+  }, [_hasHydrated, isAuthenticated]);
 
   const fetchSessions = async () => {
     try {

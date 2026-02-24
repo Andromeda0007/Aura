@@ -76,7 +76,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="input pl-11"
-                    placeholder="you@example.com"
+                    placeholder="Enter your email"
                     disabled={isLoading}
                   />
                 </div>

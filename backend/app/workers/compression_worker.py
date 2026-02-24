@@ -1,6 +1,6 @@
 """
 Compression Worker — compresses session context when token limit is reached.
-Triggered directly (no Redis queue). Sends notifications via WebSocket.
+Triggered directly via asyncio.create_task(). Sends notifications via WebSocket.
 """
 import json
 from datetime import datetime

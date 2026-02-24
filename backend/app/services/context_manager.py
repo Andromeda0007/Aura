@@ -1,6 +1,6 @@
 """
 Context Manager — in-memory per-session buffer.
-No Redis needed. Resets on server restart (acceptable for demo).
+In-memory store. Resets on server restart (acceptable for demo).
 """
 from typing import List, Dict
 import structlog

@@ -17,7 +17,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     fullName: '',
-    role: 'teacher' as 'teacher' | 'student',
+    role: 'teacher' as 'teacher' | 'student',  // always teacher
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -85,7 +85,7 @@ export default function SignupPage() {
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className="input pl-11"
-                    placeholder="John Doe"
+                    placeholder="Enter your name"
                     disabled={isLoading}
                   />
                 </div>
@@ -103,7 +103,7 @@ export default function SignupPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="input pl-11"
-                    placeholder="you@example.com"
+                    placeholder="Enter your email"
                     disabled={isLoading}
                   />
                 </div>
@@ -121,47 +121,9 @@ export default function SignupPage() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="input pl-11"
-                    placeholder="Minimum 6 characters"
+                    placeholder="Enter your password"
                     disabled={isLoading}
                   />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-dark-200 mb-2">
-                  I am a
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, role: 'teacher' })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.role === 'teacher'
-                        ? 'border-primary-500 bg-dark-800'
-                        : 'border-dark-700 hover:border-dark-600'
-                    }`}
-                    disabled={isLoading}
-                  >
-                    <div className="text-center">
-                      <div className="font-medium text-dark-50">Teacher</div>
-                      <div className="text-sm text-dark-200 mt-1">Create and manage sessions</div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, role: 'student' })}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      formData.role === 'student'
-                        ? 'border-primary-500 bg-dark-800'
-                        : 'border-dark-700 hover:border-dark-600'
-                    }`}
-                    disabled={isLoading}
-                  >
-                    <div className="text-center">
-                      <div className="font-medium text-dark-50">Student</div>
-                      <div className="text-sm text-dark-200 mt-1">Join and learn</div>
-                    </div>
-                  </button>
                 </div>
               </div>
 

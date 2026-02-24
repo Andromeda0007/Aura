@@ -16,7 +16,7 @@ class WorkerManager:
             return
         self.running = True
 
-        # STT and Vision workers are now called directly per-request (no Redis loop needed)
+        # STT and Vision workers are called directly per-request via asyncio.create_task()
         # Only LLM and Compression workers need background loops for command/context processing
         logger.info("✅ Worker manager ready (STT + Vision run per-request, no background loops)")
 

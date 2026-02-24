@@ -4,7 +4,7 @@ from .transcript import Transcript
 from .whiteboard import WhiteboardLog
 from .fusion import FusionEvent
 from .command import Command, CommandIntent, CommandStatus
-from .quiz import Quiz, QuizAttempt
+from .quiz import Quiz
 
 __all__ = [
     "User",
@@ -18,5 +18,4 @@ __all__ = [
     "CommandIntent",
     "CommandStatus",
     "Quiz",
-    "QuizAttempt",
 ]

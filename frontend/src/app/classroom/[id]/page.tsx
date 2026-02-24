@@ -22,7 +22,7 @@ export default function ClassroomPage() {
   const params = useParams()
   const sessionId = params.id as string
   
-  const { user, tokens, isAuthenticated } = useAuthStore()
+  const { user, tokens, isAuthenticated, _hasHydrated } = useAuthStore()
   const {
     currentSession,
     setCurrentSession,
@@ -41,6 +41,7 @@ export default function ClassroomPage() {
   const [showTranscript, setShowTranscript] = useState(false)
 
   useEffect(() => {
+    if (!_hasHydrated) return   // wait for localStorage to rehydrate
     if (!isAuthenticated || !tokens) {
       router.push('/auth/login')
       return
@@ -49,22 +50,34 @@ export default function ClassroomPage() {
     return () => {
       cleanup()
     }
-  }, [isAuthenticated, sessionId])
+  }, [_hasHydrated, isAuthenticated, sessionId])
 
   const initializeSession = async () => {
     try {
       const session = await api.getSession(sessionId)
       setCurrentSession(session)
-      
+
+      // Restore previous transcripts from DB
+      try {
+        const prev = await api.getSessionTranscripts(sessionId)
+        if (prev.length > 0) {
+          prev.forEach((t) =>
+            addTranscriptEntry({ id: `db-${t.id}`, text: t.text, timestamp: t.timestamp, isFinal: true })
+          )
+        }
+      } catch (_) {
+        // non-fatal — just skip if it fails
+      }
+
       wsClient.connect(sessionId, tokens!.accessToken)
       setIsConnected(true)
-      
+
       wsClient.on('compression_started', handleCompressionStarted)
       wsClient.on('compression_complete', handleCompressionComplete)
       wsClient.on('command_response', handleCommandResponse)
       wsClient.on('transcript_update', handleTranscriptUpdate)
       wsClient.on('error', handleError)
-      
+
       setIsLoading(false)
     } catch (error: any) {
       toast.error('Failed to load session')
@@ -214,7 +227,7 @@ export default function ClassroomPage() {
       <footer className="h-16 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-6">
         <div className="flex items-center gap-4 text-sm text-dark-200">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-primary-500' : 'bg-red-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
           </div>
           <div>Tokens: {currentSession?.activeBufferTokens.toLocaleString() || 0} / 10,000</div>

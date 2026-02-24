@@ -38,7 +38,6 @@ class Command(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     session = relationship("Session", back_populates="commands")
-    quizzes = relationship("Quiz", back_populates="command", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Command {self.id} - {self.intent}>"
