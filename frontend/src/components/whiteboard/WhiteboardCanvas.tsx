@@ -59,7 +59,7 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
     // ── Camera — set AFTER snapshot ───────────────────────────
     e.setCameraOptions({
       constraints: {
-        bounds:       { x: 0, y: 0, w: 5000, h: 999999 },
+        bounds:       { x: 0, y: 0, w: 2000, h: 50000 },
         padding:      { x: 0, y: 0 },
         origin:       { x: 0, y: 0 },
         initialZoom:  'default',

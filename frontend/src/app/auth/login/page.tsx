@@ -60,7 +60,7 @@ export default function LoginPage() {
               Welcome Back
             </h1>
             <p className="text-dark-200 mb-8">
-              Sign in to continue to your classroom
+              Log in to continue to your classroom
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -108,15 +108,15 @@ export default function LoginPage() {
                 className="w-full"
                 rightIcon={<ArrowRight className="w-5 h-5" />}
               >
-                Sign In
-              </Button>
+              Log In
+            </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-dark-200">
                 Don't have an account?{' '}
                 <Link href="/auth/signup" className="text-primary-500 hover:text-primary-400 font-medium">
-                  Sign up
+                  Sign Up
                 </Link>
               </p>
             </div>

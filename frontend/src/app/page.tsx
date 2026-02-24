@@ -1,10 +1,23 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Brain, Sparkles, Zap, MessageSquare, BarChart3, Shield, Layers } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 export default function HomePage() {
+  const router = useRouter()
+  const { isAuthenticated, _hasHydrated } = useAuthStore()
+
+  // Redirect logged-in users straight to dashboard
+  useEffect(() => {
+    if (_hasHydrated && isAuthenticated) {
+      router.replace('/dashboard')
+    }
+  }, [_hasHydrated, isAuthenticated])
+
   const features = [
     {
       icon: Layers,
@@ -23,7 +36,7 @@ export default function HomePage() {
     },
     {
       icon: BarChart3,
-      title: 'Student Analytics',
+      title: 'Smart Analytics',
       description: 'Track engagement and understanding in real-time',
     },
     {
@@ -48,10 +61,10 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold text-dark-50">Aura</span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="btn-ghost btn-md">
-              Sign In
+              Log In
             </Link>
             <Link href="/auth/signup" className="btn-primary btn-md">
               Get Started
@@ -73,17 +86,17 @@ export default function HomePage() {
                 <Brain className="w-4 h-4 text-primary-500" />
                 <span className="text-sm font-medium text-dark-50">AI-Powered Teaching Assistant</span>
               </div>
-              
+
               <h1 className="text-5xl md:text-7xl font-bold text-dark-50 mb-6 leading-tight">
                 Transform Your
                 <span className="text-gradient"> Smartboard </span>
                 Lectures
               </h1>
-              
+
               <p className="text-xl md:text-2xl text-dark-200 mb-10 max-w-3xl mx-auto leading-relaxed">
                 Aura fuses what you draw with what you say, creating intelligent context that helps you teach better. Generate quizzes, answer questions, and engage students in real-time.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/auth/signup" className="btn-primary btn-xl w-full sm:w-auto">
                   Start Teaching with Aura
@@ -141,12 +154,8 @@ export default function HomePage() {
                   <div className="w-12 h-12 bg-dark-800 rounded-lg flex items-center justify-center mb-4 border-2 border-primary-500/50">
                     <feature.icon className="w-6 h-6 text-primary-500" />
                   </div>
-                  <h3 className="text-xl font-semibold text-dark-50 mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-dark-200 leading-relaxed">
-                    {feature.description}
-                  </p>
+                  <h3 className="text-xl font-semibold text-dark-50 mb-2">{feature.title}</h3>
+                  <p className="text-dark-200 leading-relaxed">{feature.description}</p>
                 </motion.div>
               ))}
             </div>
@@ -187,21 +196,11 @@ export default function HomePage() {
               </div>
               <span className="font-bold text-dark-50">Aura</span>
             </div>
-            
-            <p className="text-dark-300 text-sm">
-              Built for educators, powered by AI
-            </p>
-            
+            <p className="text-dark-300 text-sm">Built for educators, powered by AI</p>
             <div className="flex items-center gap-6 text-sm text-dark-300">
-              <Link href="/privacy" className="transition-colors">
-                Privacy
-              </Link>
-              <Link href="/terms" className="transition-colors">
-                Terms
-              </Link>
-              <Link href="/contact" className="transition-colors">
-                Contact
-              </Link>
+              <Link href="/privacy" className="transition-colors">Privacy</Link>
+              <Link href="/terms" className="transition-colors">Terms</Link>
+              <Link href="/contact" className="transition-colors">Contact</Link>
             </div>
           </div>
         </div>

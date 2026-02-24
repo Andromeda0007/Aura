@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   Brain,
@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { api } from "@/lib/api";
@@ -27,8 +28,12 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
+  // New session modal state
+  const [showModal, setShowModal] = useState(false);
+  const [subjectInput, setSubjectInput] = useState("");
+
   useEffect(() => {
-    if (!_hasHydrated) return   // wait for localStorage to rehydrate
+    if (!_hasHydrated) return;
     if (!isAuthenticated) {
       router.push("/auth/login");
       return;
@@ -48,13 +53,15 @@ export default function DashboardPage() {
   };
 
   const handleCreateSession = async () => {
-    const subject = prompt("Enter subject name:");
+    const subject = subjectInput.trim();
     if (!subject) return;
 
     setIsCreating(true);
     try {
       const newSession = await api.createSession(subject);
       toast.success("Session created!");
+      setShowModal(false);
+      setSubjectInput("");
       router.push(`/classroom/${newSession.id}`);
     } catch (error: any) {
       toast.error("Failed to create session");
@@ -65,17 +72,15 @@ export default function DashboardPage() {
 
   const handleDeleteSession = async (
     sessionId: string,
-    e: React.MouseEvent,
+    e: React.MouseEvent
   ) => {
-    e.preventDefault(); // Prevent navigation
+    e.preventDefault();
     e.stopPropagation();
-
     if (!confirm("Are you sure you want to delete this session?")) return;
-
     try {
       await api.deleteSession(sessionId);
       setSessions(sessions.filter((s) => s.id !== sessionId));
-      toast.success("Session deleted successfully");
+      toast.success("Session deleted");
     } catch (error: any) {
       toast.error("Failed to delete session");
     }
@@ -88,9 +93,7 @@ export default function DashboardPage() {
   };
 
   const formatDateInIST = (dateString: string) => {
-    const date = new Date(dateString);
-    // Format in IST (UTC+5:30)
-    return date.toLocaleString("en-IN", {
+    return new Date(dateString).toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
       year: "numeric",
       month: "short",
@@ -99,9 +102,7 @@ export default function DashboardPage() {
   };
 
   const formatTimeInIST = (dateString: string) => {
-    const date = new Date(dateString);
-    // Format in IST (UTC+5:30)
-    return date.toLocaleString("en-IN", {
+    return new Date(dateString).toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
       hour: "2-digit",
       minute: "2-digit",
@@ -111,14 +112,10 @@ export default function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
-        return "badge-success";
-      case "paused":
-        return "badge-warning";
-      case "completed":
-        return "badge-secondary";
-      default:
-        return "badge-secondary";
+      case "active":    return "badge-success";
+      case "paused":    return "badge-warning";
+      case "completed": return "badge-secondary";
+      default:          return "badge-secondary";
     }
   };
 
@@ -135,21 +132,24 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-dark-900">
+      {/* ── Navbar ── */}
       <nav className="border-b border-dark-700 glass">
         <div className="container-custom flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
+          {/* Logo → stays on dashboard when logged in */}
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center gap-2"
+          >
             <div className="w-8 h-8 bg-dark-800 rounded-lg flex items-center justify-center border-2 border-primary-500/50">
               <Brain className="w-5 h-5 text-primary-500" />
             </div>
             <span className="text-xl font-bold text-dark-50">Aura</span>
-          </Link>
+          </button>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800 border border-dark-700">
               <User className="w-4 h-4 text-dark-200" />
-              <span className="text-sm font-medium text-dark-50">
-                {user?.fullName}
-              </span>
+              <span className="text-sm font-medium text-dark-50">{user?.fullName}</span>
             </div>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -159,6 +159,7 @@ export default function DashboardPage() {
         </div>
       </nav>
 
+      {/* ── Main ── */}
       <main className="container-custom py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -167,9 +168,7 @@ export default function DashboardPage() {
         >
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-dark-50 mb-2">
-                Your Sessions
-              </h1>
+              <h1 className="text-4xl font-bold text-dark-50 mb-2">Your Sessions</h1>
               <p className="text-lg text-dark-200">
                 Manage your teaching sessions and access past lectures
               </p>
@@ -177,7 +176,7 @@ export default function DashboardPage() {
             <Button
               variant="primary"
               size="lg"
-              onClick={handleCreateSession}
+              onClick={() => setShowModal(true)}
               isLoading={isCreating}
               leftIcon={<Plus className="w-5 h-5" />}
             >
@@ -190,17 +189,14 @@ export default function DashboardPage() {
               <div className="w-16 h-16 bg-dark-800 border-2 border-primary-500/50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <PlayCircle className="w-8 h-8 text-primary-500" />
               </div>
-              <h3 className="text-xl font-semibold text-dark-50 mb-2">
-                No sessions yet
-              </h3>
+              <h3 className="text-xl font-semibold text-dark-50 mb-2">No sessions yet</h3>
               <p className="text-dark-200 mb-6 max-w-md mx-auto">
-                Create your first teaching session to start using Aura's
-                AI-powered assistance
+                Create your first teaching session to start using Aura's AI-powered assistance
               </p>
               <Button
                 variant="primary"
                 size="lg"
-                onClick={handleCreateSession}
+                onClick={() => setShowModal(true)}
                 isLoading={isCreating}
                 leftIcon={<Plus className="w-5 h-5" />}
               >
@@ -218,18 +214,13 @@ export default function DashboardPage() {
                 >
                   <div className="card p-6 h-full relative group">
                     <div className="flex items-start justify-between mb-4">
-                      <Link
-                        href={`/classroom/${session.id}`}
-                        className="flex-1"
-                      >
+                      <Link href={`/classroom/${session.id}`} className="flex-1">
                         <h3 className="text-xl font-semibold text-dark-50 hover:text-primary-500 transition-colors">
                           {session.subject}
                         </h3>
                       </Link>
                       <div className="flex items-center gap-3 ml-4">
-                        <span
-                          className={`badge ${getStatusColor(session.status)}`}
-                        >
+                        <span className={`badge ${getStatusColor(session.status)}`}>
                           {session.status}
                         </span>
                         <button
@@ -253,7 +244,6 @@ export default function DashboardPage() {
                           <span>{formatTimeInIST(session.startTime)}</span>
                         </div>
                       </div>
-
                       <div className="mt-6 pt-4 border-t border-dark-700/50">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-dark-200">Context buffer</span>
@@ -270,6 +260,74 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </main>
+
+      {/* ── New Session Modal ── */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md bg-[#202127] rounded-2xl border border-[#F56565]/20 shadow-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-[#DFDFD6]">New Session</h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-1.5 rounded-lg hover:bg-[#1B1B1F] transition-colors"
+                >
+                  <X className="w-4 h-4 text-[#DFDFD6]/50" />
+                </button>
+              </div>
+
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[#DFDFD6]/70 mb-2">
+                  Subject Name
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={subjectInput}
+                  onChange={(e) => setSubjectInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
+                  placeholder="e.g. Physics, Maths, Chemistry..."
+                  className="w-full px-4 py-3 rounded-xl bg-[#1B1B1F] border border-[#DFDFD6]/10 text-[#DFDFD6] placeholder-[#DFDFD6]/30 focus:outline-none focus:border-[#F56565]/60 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="md"
+                  className="flex-1"
+                  onClick={() => { setShowModal(false); setSubjectInput(""); }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="flex-1"
+                  onClick={handleCreateSession}
+                  isLoading={isCreating}
+                  disabled={!subjectInput.trim()}
+                >
+                  Create
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
