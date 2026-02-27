@@ -1,6 +1,5 @@
 import json
-from typing import Dict, List, Optional, Any
-import google.generativeai as genai
+from typing import Dict, List, Any
 import structlog
 
 from ..core.config import get_settings
@@ -8,13 +7,52 @@ from ..core.config import get_settings
 settings = get_settings()
 logger = structlog.get_logger()
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+
+def _build_client():
+    """Return (client, provider) — prefers Groq, falls back to Gemini."""
+    if settings.GROQ_API_KEY:
+        from groq import Groq
+        logger.info("AI provider: Groq")
+        return Groq(api_key=settings.GROQ_API_KEY), "groq"
+
+    if settings.GEMINI_API_KEY:
+        import google.generativeai as genai
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        logger.info("AI provider: Gemini")
+        return genai, "gemini"
+
+    raise RuntimeError("No AI API key configured. Set GROQ_API_KEY or GEMINI_API_KEY in .env")
 
 
 class AIService:
     def __init__(self):
-        self.flash_model = genai.GenerativeModel("gemini-1.5-flash")
-        self.pro_model = genai.GenerativeModel("gemini-1.5-pro")
+        self._client, self._provider = _build_client()
+
+        if self._provider == "gemini":
+            import google.generativeai as genai
+            self.flash_model = genai.GenerativeModel("gemini-2.0-flash-lite")
+            self.pro_model   = genai.GenerativeModel("gemini-2.0-flash")
+
+    # ── low-level generate ────────────────────────────────────────────────────
+
+    def _generate(self, prompt: str, model: str = "fast") -> str:
+        """Generate text. model='fast' or 'smart'."""
+        if self._provider == "groq":
+            # fast = llama-3.1-8b-instant (30 RPM free), smart = llama-3.3-70b (30 RPM free)
+            model_id = "llama-3.1-8b-instant" if model == "fast" else "llama-3.3-70b-versatile"
+            response = self._client.chat.completions.create(
+                model=model_id,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            )
+            return response.choices[0].message.content.strip()
+
+        else:  # gemini
+            m = self.flash_model if model == "fast" else self.pro_model
+            response = m.generate_content(prompt)
+            return response.text.strip()
+
+    # ── public methods ────────────────────────────────────────────────────────
 
     async def classify_intent(self, command: str) -> str:
         prompt = f"""Classify the following command into one of these intents:
@@ -30,21 +68,11 @@ Command: "{command}"
 Respond with ONLY the intent name, nothing else."""
 
         try:
-            response = self.flash_model.generate_content(prompt)
-            intent = response.text.strip().lower()
-            
-            valid_intents = [
-                "generate_quiz",
-                "summarize",
-                "explain",
-                "generate_example",
-                "answer_question",
-                "other"
-            ]
-            
-            if intent not in valid_intents:
+            intent = self._generate(prompt, model="fast").lower().strip()
+            valid = ["generate_quiz", "summarize", "explain",
+                     "generate_example", "answer_question", "other"]
+            if intent not in valid:
                 intent = "other"
-            
             logger.info("Intent classified", command=command[:50], intent=intent)
             return intent
         except Exception as e:
@@ -63,7 +91,7 @@ Generate a quiz with 5 multiple-choice questions. For each question:
 - Make it relevant to the context
 - Provide 4 options (A, B, C, D)
 - Indicate the correct answer (0, 1, 2, or 3)
-- Optionally add a brief explanation
+- Add a brief explanation
 
 Respond ONLY with valid JSON in this exact format:
 {{
@@ -73,22 +101,18 @@ Respond ONLY with valid JSON in this exact format:
       "question": "Question text?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": 0,
-      "explanation": "Brief explanation (optional)"
+      "explanation": "Brief explanation"
     }}
   ]
 }}"""
 
         try:
-            response = self.pro_model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-            
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
             quiz_data = json.loads(text.strip())
-            
             logger.info("Quiz generated", questions=len(quiz_data.get("questions", [])))
             return quiz_data
         except Exception as e:
@@ -110,21 +134,17 @@ Respond ONLY with valid JSON in this format:
 {{
   "title": "Summary",
   "content": "Main summary text",
-  "keyPoints": ["Point 1", "Point 2", ...],
-  "topics": ["Topic 1", "Topic 2", ...]
+  "keyPoints": ["Point 1", "Point 2"],
+  "topics": ["Topic 1", "Topic 2"]
 }}"""
 
         try:
-            response = self.flash_model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-            
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
             summary = json.loads(text.strip())
-            
             logger.info("Summary generated")
             return summary
         except Exception as e:
@@ -139,7 +159,7 @@ LECTURE CONTEXT:
 
 USER REQUEST: {command}
 
-Provide a clear, concise explanation suitable for the student's level.
+Provide a clear, concise explanation.
 
 Respond ONLY with valid JSON:
 {{
@@ -148,16 +168,12 @@ Respond ONLY with valid JSON:
 }}"""
 
         try:
-            response = self.pro_model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-            
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
             explanation = json.loads(text.strip())
-            
             logger.info("Explanation generated")
             return explanation
         except Exception as e:
@@ -181,16 +197,12 @@ Respond ONLY with valid JSON:
 }}"""
 
         try:
-            response = self.pro_model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-            
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
             example = json.loads(text.strip())
-            
             logger.info("Example generated")
             return example
         except Exception as e:
@@ -199,7 +211,6 @@ Respond ONLY with valid JSON:
 
     async def compress_context(self, buffer: List[Dict]) -> Dict[str, Any]:
         context_text = self._format_buffer(buffer)
-        
         prompt = f"""Compress this lecture segment into a structured summary.
 
 CONTENT:
@@ -213,23 +224,19 @@ Extract:
 
 Respond ONLY with valid JSON:
 {{
-  "topicFlow": ["Topic 1", "Topic 2", ...],
-  "keyConcepts": {{"concept": "definition", ...}},
+  "topicFlow": ["Topic 1", "Topic 2"],
+  "keyConcepts": {{"concept": "definition"}},
   "visualReferences": [{{"timestamp": "...", "content": "..."}}],
-  "dependencies": ["Concept A depends on B", ...]
+  "dependencies": ["Concept A depends on B"]
 }}"""
 
         try:
-            response = self.flash_model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-            
+            text = self._generate(prompt, model="fast")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
             compressed = json.loads(text.strip())
-            
             logger.info("Context compressed successfully")
             return compressed
         except Exception as e:
@@ -237,22 +244,15 @@ Respond ONLY with valid JSON:
             return self._simple_compression(buffer)
 
     def _simple_compression(self, buffer: List[Dict]) -> Dict[str, Any]:
-        logger.warning("Using simple compression fallback")
-        
-        all_text = " ".join([item.get("text", "") for item in buffer if item.get("type") == "transcript"])
-        words = all_text.split()
-        
-        unique_words = list(set(words))[:10]
-        
-        timestamps = [item.get("timestamp") for item in buffer if "timestamp" in item]
-        time_range = f"{min(timestamps)} - {max(timestamps)}" if timestamps else "unknown"
-        
+        all_text  = " ".join([i.get("text", "") for i in buffer if i.get("type") == "transcript"])
+        words     = list(set(all_text.split()))[:10]
+        timestamps = [i.get("timestamp") for i in buffer if "timestamp" in i]
         return {
-            "topicFlow": unique_words[:5],
-            "keyConcepts": {word: "mentioned" for word in unique_words},
+            "topicFlow": words[:5],
+            "keyConcepts": {w: "mentioned" for w in words},
             "visualReferences": [],
             "dependencies": [],
-            "note": "Simplified compression - LLM unavailable",
+            "note": "Simplified compression",
         }
 
     def _format_buffer(self, buffer: List[Dict]) -> str:

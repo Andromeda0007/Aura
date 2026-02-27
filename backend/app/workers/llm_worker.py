@@ -47,7 +47,7 @@ class LLMWorker:
                 db.close()
 
             context = await self._get_context(session_id)
-            response_data = await self._execute_intent(intent, context, command_text, session_id)
+            response_data = await self._execute_intent(intent, context, command_text, session_id, command_id)
 
             processing_time = int((time.time() - start_time) * 1000)
 
@@ -62,11 +62,22 @@ class LLMWorker:
             finally:
                 db.close()
 
+            # Map backend intents to frontend-expected type names
+            type_map = {
+                CommandIntent.GENERATE_QUIZ:    'quiz',
+                CommandIntent.SUMMARIZE:        'summary',
+                CommandIntent.EXPLAIN:          'explanation',
+                CommandIntent.GENERATE_EXAMPLE: 'example',
+                CommandIntent.ANSWER_QUESTION:  'answer',
+                CommandIntent.OTHER:            'answer',
+            }
+            response_type = type_map.get(intent, 'answer')
+
             # Send directly via WebSocket
             if sid:
                 from ..websocket.connection import send_to_client
                 await send_to_client(sid, 'command_response', {
-                    'type': intent.value if intent != CommandIntent.GENERATE_QUIZ else 'quiz',
+                    'type': response_type,
                     'data': response_data,
                     'commandId': command_id,
                     'processingTime': processing_time,
@@ -97,24 +108,36 @@ class LLMWorker:
                 for concept, definition in summary.get('keyConcepts', {}).items():
                     history_text += f"- {concept}: {definition}\n"
 
-            # Recent transcripts from DB (last 20)
-            from ..models import Transcript
+            # Recent transcripts from DB (last 30)
+            from ..models import Transcript, WhiteboardLog
             recent = (db.query(Transcript)
                       .filter(Transcript.session_id == session_id)
                       .order_by(Transcript.timestamp.desc())
-                      .limit(20).all())
+                      .limit(30).all())
             recent_text = " ".join(t.text for t in reversed(recent))
 
-            return f"{history_text}\n\nRECENT TRANSCRIPT:\n{recent_text}"
+            # Recent whiteboard OCR text (last 5 snapshots)
+            whiteboard_logs = (db.query(WhiteboardLog)
+                               .filter(WhiteboardLog.session_id == session_id)
+                               .order_by(WhiteboardLog.timestamp.desc())
+                               .limit(5).all())
+            ocr_text = " | ".join(
+                w.ocr_text for w in reversed(whiteboard_logs) if w.ocr_text
+            )
+
+            context = f"{history_text}\n\nRECENT TRANSCRIPT:\n{recent_text}"
+            if ocr_text:
+                context += f"\n\nWHITEBOARD CONTENT (OCR):\n{ocr_text}"
+            return context
         finally:
             db.close()
 
-    async def _execute_intent(self, intent: CommandIntent, context: str, command: str, session_id: str) -> dict:
+    async def _execute_intent(self, intent: CommandIntent, context: str, command: str, session_id: str, command_id: str = None) -> dict:
         if intent == CommandIntent.GENERATE_QUIZ:
             quiz_data = await ai_service.generate_quiz(context, command)
             db = SessionLocal()
             try:
-                quiz = Quiz(session_id=session_id, command_id=None,
+                quiz = Quiz(session_id=session_id, command_id=command_id,
                             share_code=Quiz.generate_share_code(), quiz_data=quiz_data)
                 db.add(quiz)
                 db.commit()

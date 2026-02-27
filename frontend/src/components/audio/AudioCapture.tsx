@@ -57,7 +57,18 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
       if (final.trim()) {
         const text = final.trim()
         onLiveTranscriptRef.current?.(text, true)
-        // Send plain text to backend for storage
+
+        // Check for "Hey Aura" command BEFORE saving transcript
+        const lower = text.toLowerCase()
+        const triggerIdx = lower.indexOf('hey aura')
+        if (triggerIdx !== -1) {
+          // Extract everything after "hey aura" as the command
+          const command = text.slice(triggerIdx).trim()
+          console.log(`🤖 Hey Aura detected → sending command: "${command.slice(0, 80)}"`)
+          wsClient.sendVoiceCommand(sessionId, command)
+        }
+
+        // Always also save transcript for context
         wsClient.sendTranscriptText(sessionId, text)
         console.log(`📤 Transcript → backend: "${text.slice(0, 80)}"`)
       }

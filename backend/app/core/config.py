@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     
-    GEMINI_API_KEY: str
+    GROQ_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
     
     LOCAL_STORAGE_PATH: str = "D:/Aura-Storage"
     

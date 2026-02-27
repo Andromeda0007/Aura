@@ -90,8 +90,8 @@ class VisionWorker:
     async def _save_to_db(self, session_id, tldraw_state, image_url, ocr_text, timestamp, page_number):
         db = SessionLocal()
         try:
-            from ..models import StudySession
-            session = db.query(StudySession).filter(StudySession.id == session_id).first()
+            from ..models import Session as SessionModel
+            session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
             if not session:
                 logger.warning("Session not in DB, skipping whiteboard log", session_id=session_id)
                 return

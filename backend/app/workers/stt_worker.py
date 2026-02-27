@@ -184,8 +184,8 @@ class STTWorker:
     async def _save_db(self, session_id: str, text: str, timestamp: str):
         db = SessionLocal()
         try:
-            from ..models import StudySession
-            if not db.query(StudySession).filter(StudySession.id == session_id).first():
+            from ..models import Session as SessionModel
+            if not db.query(SessionModel).filter(SessionModel.id == session_id).first():
                 return
             ts = datetime.utcnow()
             if timestamp:

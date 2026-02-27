@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Mic, MicOff, Play, Square, Home, Brain } from 'lucide-react'
+import { Mic, MicOff, Play, Square, Home, Brain, Send } from 'lucide-react'
 import { Button } from '@/components/shared/Button'
 import { api } from '@/lib/api'
 import { wsClient } from '@/lib/websocket'
@@ -39,6 +39,8 @@ export default function ClassroomPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
+  const [auraInput, setAuraInput] = useState('')
+  const [isAuraProcessing, setIsAuraProcessing] = useState(false)
 
   useEffect(() => {
     if (!_hasHydrated) return   // wait for localStorage to rehydrate
@@ -103,6 +105,18 @@ export default function ClassroomPage() {
 
   const handleCommandResponse = (data: any) => {
     useSessionStore.getState().setLatestAIResponse(data)
+    setIsAuraProcessing(false)
+  }
+
+  const handleAuraSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const cmd = auraInput.trim()
+    if (!cmd || !isConnected) return
+    const fullCommand = cmd.toLowerCase().startsWith('hey aura') ? cmd : `hey aura ${cmd}`
+    wsClient.sendVoiceCommand(sessionId, fullCommand)
+    setIsAuraProcessing(true)
+    setAuraInput('')
+    toast('Asking Aura...', { icon: '🤖' })
   }
 
   const handleError = (data: any) => {
@@ -221,8 +235,8 @@ export default function ClassroomPage() {
         )}
       </div>
 
-      <footer className="h-12 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-3">
-        <div className="flex items-center gap-3 text-xs text-dark-200">
+      <footer className="h-12 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-3 gap-3">
+        <div className="flex items-center gap-3 text-xs text-dark-200 shrink-0">
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
@@ -230,7 +244,34 @@ export default function ClassroomPage() {
           <div>Tokens: {currentSession?.activeBufferTokens.toLocaleString() || 0} / 10,000</div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Aura command input */}
+        <form onSubmit={handleAuraSubmit} className="flex-1 flex items-center gap-2 max-w-lg">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={auraInput}
+              onChange={(e) => setAuraInput(e.target.value)}
+              placeholder={isAuraProcessing ? 'Aura is thinking…' : 'Ask Aura anything… e.g. "generate a quiz"'}
+              disabled={isAuraProcessing || !isConnected}
+              className="w-full h-7 bg-dark-700 border border-dark-600 rounded-md px-3 text-xs text-dark-50 placeholder-dark-400 focus:outline-none focus:border-primary-500 disabled:opacity-50"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={!auraInput.trim() || isAuraProcessing || !isConnected}
+            className="h-7 px-2.5"
+          >
+            {isAuraProcessing ? (
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+          </Button>
+        </form>
+
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -246,10 +287,6 @@ export default function ClassroomPage() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
             </span>
           </Button>
-
-          <span className="text-xs text-dark-200">
-            Say "Hey Aura" to give commands
-          </span>
         </div>
       </footer>
 
