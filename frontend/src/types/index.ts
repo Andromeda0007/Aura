@@ -149,10 +149,35 @@ export interface VoiceCommand {
 }
 
 export interface AIResponse {
-  type: 'quiz' | 'summary' | 'explanation' | 'example' | 'answer'
+  type: 'quiz' | 'summary' | 'explanation' | 'example' | 'answer' | 'diagram'
   data: any
   commandId: string
+  command: string
   processingTime: number
+  timestamp: string
+}
+
+export interface DiagramData {
+  diagramType: 'mermaid' | 'chemistry'
+  title: string
+  description?: string
+  // mermaid
+  code?: string
+  // chemistry
+  compoundName?: string
+  smiles?: string
+}
+
+export interface ExampleData {
+  title: string
+  problem: string
+  correctAnswer: string
+  explanation: string
+}
+
+export interface ValidateAnswerResult {
+  isCorrect: boolean
+  feedback: string
 }
 
 export interface CompressionNotification {

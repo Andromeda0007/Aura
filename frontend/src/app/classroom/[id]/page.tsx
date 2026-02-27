@@ -33,12 +33,14 @@ export default function ClassroomPage() {
     transcriptEntries,
     addTranscriptEntry,
     updateTranscriptEntry,
+    addToAIHistory,
   } = useSessionStore()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
+  const [showAIPanel, setShowAIPanel] = useState(false)
   const [auraInput, setAuraInput] = useState('')
   const [isAuraProcessing, setIsAuraProcessing] = useState(false)
 
@@ -104,8 +106,15 @@ export default function ClassroomPage() {
   }
 
   const handleCommandResponse = (data: any) => {
-    useSessionStore.getState().setLatestAIResponse(data)
+    const response = {
+      ...data,
+      timestamp: data.timestamp || new Date().toISOString(),
+      command: data.command || '',
+    }
+    useSessionStore.getState().setLatestAIResponse(response)
+    useSessionStore.getState().addToAIHistory(response)
     setIsAuraProcessing(false)
+    setShowAIPanel(true)
   }
 
   const handleAuraSubmit = (e: React.FormEvent) => {
@@ -157,7 +166,6 @@ export default function ClassroomPage() {
   const handleStartRecording = () => {
     setRecording(true)
     setAudioEnabled(true)
-    setShowTranscript(true)
     toast.success('Session started')
   }
 
@@ -230,18 +238,15 @@ export default function ClassroomPage() {
           <WhiteboardCanvas sessionId={sessionId} isRecording={isRecording} />
         </div>
 
-        {latestAIResponse && (
-          <AIPanel response={latestAIResponse} onClose={() => useSessionStore.getState().setLatestAIResponse(null)} />
+        {showAIPanel && (
+          <AIPanel onClose={() => setShowAIPanel(false)} />
         )}
       </div>
 
       <footer className="h-12 border-t border-dark-700 bg-dark-800 flex items-center justify-between px-3 gap-3">
-        <div className="flex items-center gap-3 text-xs text-dark-200 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-          </div>
-          <div>Tokens: {currentSession?.activeBufferTokens.toLocaleString() || 0} / 10,000</div>
+        <div className="flex items-center gap-1.5 text-xs text-dark-200 shrink-0">
+          <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
 
         {/* Aura command input */}

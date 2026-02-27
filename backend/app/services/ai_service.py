@@ -56,12 +56,13 @@ class AIService:
 
     async def classify_intent(self, command: str) -> str:
         prompt = f"""Classify the following command into one of these intents:
-- generate_quiz: User wants to create a quiz
-- summarize: User wants a summary
+- generate_quiz: User wants to create a quiz or test questions
+- summarize: User wants a summary of the lecture
 - explain: User wants an explanation of a concept
-- generate_example: User wants an example
-- answer_question: User is asking a specific question
-- other: Command doesn't match above intents
+- generate_example: User wants a worked example, numerical problem, or practice problem
+- generate_diagram: User wants a diagram, flowchart, chart, visual, molecular structure, chemical structure, or any graphical representation
+- answer_question: User is asking a specific factual question
+- other: Command doesn't match any above intents
 
 Command: "{command}"
 
@@ -70,7 +71,7 @@ Respond with ONLY the intent name, nothing else."""
         try:
             intent = self._generate(prompt, model="fast").lower().strip()
             valid = ["generate_quiz", "summarize", "explain",
-                     "generate_example", "answer_question", "other"]
+                     "generate_example", "generate_diagram", "answer_question", "other"]
             if intent not in valid:
                 intent = "other"
             logger.info("Intent classified", command=command[:50], intent=intent)
@@ -181,19 +182,22 @@ Respond ONLY with valid JSON:
             raise
 
     async def generate_example(self, context: str, command: str) -> Dict[str, Any]:
-        prompt = f"""Based on the lecture context, provide a relevant example.
+        prompt = f"""Based on the lecture context, create a problem or numerical for the student to solve.
 
 LECTURE CONTEXT:
 {context}
 
 USER REQUEST: {command}
 
-Provide a practical, easy-to-understand example.
+Create a practical problem that tests understanding of the topic.
+Include a clear problem statement, the correct answer, and a step-by-step explanation.
 
 Respond ONLY with valid JSON:
 {{
-  "title": "Example",
-  "content": "Example description"
+  "title": "Problem Title",
+  "problem": "Clear, complete problem statement with all necessary values and units",
+  "correctAnswer": "The exact correct answer (concise, e.g. '15 N' or '9.8 m/s²')",
+  "explanation": "Step-by-step solution showing how to arrive at the answer"
 }}"""
 
         try:
@@ -203,11 +207,125 @@ Respond ONLY with valid JSON:
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0]
             example = json.loads(text.strip())
-            logger.info("Example generated")
+            logger.info("Example/problem generated")
             return example
         except Exception as e:
             logger.error("Example generation failed", error=str(e))
             raise
+
+    @staticmethod
+    def _clean_mermaid(code: str) -> str:
+        """Fix the most common AI-generated Mermaid syntax mistakes."""
+        import re
+        # Fix: -->|label|> B  →  -->|label| B  (stray > after closing pipe)
+        code = re.sub(r'\|([^|\n]*)\|>', r'|\1| ', code)
+        # Fix: semicolons used as line separators (not valid in all Mermaid versions)
+        # Only replace ; that appear at end-of-statement, not inside labels
+        # Strategy: if the whole thing is on one line with semicolons, split it
+        if '\n' not in code.strip() and ';' in code:
+            code = code.replace(';', '\n')
+        # Strip accidental markdown fences
+        lines = [l for l in code.split('\n') if not l.strip().startswith('```')]
+        code = '\n'.join(lines).strip()
+        # Remove duplicate blank lines
+        code = re.sub(r'\n{3,}', '\n\n', code)
+        return code
+
+    async def generate_diagram(self, context: str, command: str) -> Dict[str, Any]:
+        prompt = f"""You are a technical diagramming assistant. Generate a diagram for the user's request.
+
+LECTURE CONTEXT:
+{context[:1500]}
+
+USER REQUEST: {command}
+
+STEP 1 — Choose diagram type:
+- "chemistry": ONLY for named molecules/compounds (benzene, caffeine, aspirin, glucose, water, CO2, etc.)
+- "mermaid": EVERYTHING else — physics concepts, processes, flows, sequences, architectures, algorithms, events, cycles, comparisons
+
+STEP 2 — Output JSON only:
+
+For "chemistry":
+{{
+  "diagramType": "chemistry",
+  "title": "Title",
+  "compoundName": "exact common name for API lookup",
+  "smiles": "SMILES notation",
+  "description": "1-2 sentences"
+}}
+
+For "mermaid":
+{{
+  "diagramType": "mermaid",
+  "title": "Title",
+  "code": "MERMAID CODE HERE",
+  "description": "1 sentence"
+}}
+
+MERMAID SYNTAX — STRICT RULES (follow exactly):
+1. Each node/edge MUST be on its OWN LINE — never use semicolons to separate statements
+2. Arrow with label: A -->|label text| B    ← pipe BEFORE label, pipe AFTER label, then space then destination node
+   WRONG: A -->|label|> B    WRONG: A-->|label|>B    CORRECT: A -->|label| B
+3. Simple arrow: A --> B
+4. Node shapes: A[Square]  A(Round)  A{{Diamond}}  A>Asymmetric]  A[(Database)]
+5. Start line: graph TD  (top-down) or  graph LR  (left-right)
+6. For sequences: sequenceDiagram
+7. No backticks, no markdown fences inside the code field
+8. Keep labels SHORT (2-4 words max) — long labels break rendering
+
+EXAMPLE of correct mermaid code:
+graph TD
+  A[Start] --> B{{Decision}}
+  B -->|Yes| C[Do it]
+  B -->|No| D[Skip]
+  C --> E[End]
+  D --> E
+
+Respond ONLY with valid JSON. No extra text."""
+
+        try:
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            diagram = json.loads(text.strip())
+            if diagram.get("diagramType") == "mermaid" and "code" in diagram:
+                diagram["code"] = self._clean_mermaid(diagram["code"])
+            logger.info("Diagram generated", type=diagram.get("diagramType"))
+            return diagram
+        except Exception as e:
+            logger.error("Diagram generation failed", error=str(e))
+            raise
+
+    async def validate_answer(self, problem: str, correct_answer: str, user_answer: str) -> Dict[str, Any]:
+        prompt = f"""You are a teacher checking a student's answer. Be lenient with formatting and units.
+
+Problem: {problem}
+Correct Answer: {correct_answer}
+Student's Answer: {user_answer}
+
+Is the student correct? Accept answers that are numerically equivalent even if expressed differently
+(e.g. "15 N", "15 Newtons", "fifteen newtons" are all the same).
+
+Respond ONLY with valid JSON:
+{{
+  "isCorrect": true or false,
+  "feedback": "One encouraging sentence. If wrong, briefly hint at the correct approach without giving away the answer."
+}}"""
+
+        try:
+            text = self._generate(prompt, model="fast")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            result = json.loads(text.strip())
+            logger.info("Answer validated", is_correct=result.get("isCorrect"))
+            return result
+        except Exception as e:
+            logger.error("Answer validation failed", error=str(e))
+            return {"isCorrect": False, "feedback": "Could not validate answer. Please try again."}
 
     async def compress_context(self, buffer: List[Dict]) -> Dict[str, Any]:
         context_text = self._format_buffer(buffer)

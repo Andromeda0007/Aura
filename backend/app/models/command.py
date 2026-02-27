@@ -13,6 +13,7 @@ class CommandIntent(str, enum.Enum):
     EXPLAIN = "explain"
     GENERATE_EXAMPLE = "generate_example"
     ANSWER_QUESTION = "answer_question"
+    GENERATE_DIAGRAM = "generate_diagram"
     OTHER = "other"
 
 

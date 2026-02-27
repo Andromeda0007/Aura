@@ -68,6 +68,7 @@ class LLMWorker:
                 CommandIntent.SUMMARIZE:        'summary',
                 CommandIntent.EXPLAIN:          'explanation',
                 CommandIntent.GENERATE_EXAMPLE: 'example',
+                CommandIntent.GENERATE_DIAGRAM: 'diagram',
                 CommandIntent.ANSWER_QUESTION:  'answer',
                 CommandIntent.OTHER:            'answer',
             }
@@ -80,7 +81,9 @@ class LLMWorker:
                     'type': response_type,
                     'data': response_data,
                     'commandId': command_id,
+                    'command': command_text,
                     'processingTime': processing_time,
+                    'timestamp': datetime.utcnow().isoformat(),
                 })
 
             logger.info("Command completed", session_id=session_id, intent=intent.value, ms=processing_time)
@@ -153,6 +156,8 @@ class LLMWorker:
             return await ai_service.explain_concept(context, command)
         elif intent == CommandIntent.GENERATE_EXAMPLE:
             return await ai_service.generate_example(context, command)
+        elif intent == CommandIntent.GENERATE_DIAGRAM:
+            return await ai_service.generate_diagram(context, command)
         else:
             return {"content": "I don't understand that command. Try asking for a quiz, summary, or explanation."}
 

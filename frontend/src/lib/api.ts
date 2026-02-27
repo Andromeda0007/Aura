@@ -159,6 +159,20 @@ class APIClient {
     const response = await this.client.get(`/sessions/${sessionId}/transcripts`)
     return response.data
   }
+
+  async validateAnswer(
+    sessionId: string,
+    problem: string,
+    correctAnswer: string,
+    userAnswer: string,
+  ): Promise<{ isCorrect: boolean; feedback: string }> {
+    const response = await this.client.post(`/sessions/${sessionId}/validate-answer`, {
+      problem,
+      correct_answer: correctAnswer,
+      user_answer: userAnswer,
+    })
+    return response.data
+  }
 }
 
 export const api = new APIClient()

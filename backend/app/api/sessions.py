@@ -252,3 +252,37 @@ async def get_session_commands(
         }
         for cmd in commands
     ]
+
+
+class ValidateAnswerRequest(BaseModel):
+    problem: str
+    correct_answer: str
+    user_answer: str
+
+
+@router.post("/{session_id}/validate-answer")
+async def validate_answer(
+    session_id: str,
+    request: ValidateAnswerRequest,
+    current_user: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.teacher_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    from ..services.ai_service import AIService
+    ai = AIService()
+    result = await ai.validate_answer(
+        problem=request.problem,
+        correct_answer=request.correct_answer,
+        user_answer=request.user_answer,
+    )
+    return result

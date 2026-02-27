@@ -15,10 +15,27 @@ settings = get_settings()
 logger = structlog.get_logger()
 
 
+def _migrate_enum_values():
+    """Idempotently add new enum values that don't exist yet in PostgreSQL.
+    NOTE: SQLAlchemy maps Python enum .name (UPPERCASE) → PostgreSQL enum label.
+    Always use UPPERCASE labels here to match that convention."""
+    from sqlalchemy import text
+    from .core.database import engine
+    new_values = ["GENERATE_DIAGRAM"]
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        for val in new_values:
+            try:
+                conn.execute(text(f"ALTER TYPE commandintent ADD VALUE IF NOT EXISTS '{val}'"))
+                logger.info("Enum value ensured", value=val)
+            except Exception as exc:
+                logger.warning("Enum migration skipped", value=val, reason=str(exc))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Aura API", version=settings.VERSION, environment=settings.ENVIRONMENT)
     init_db()
+    _migrate_enum_values()
     await worker_manager.start_all()
     yield
     logger.info("Shutting down Aura API")
