@@ -11,7 +11,7 @@ logger = structlog.get_logger()
 
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=settings.ALLOWED_ORIGINS,
+    cors_allowed_origins=settings.allowed_origins_list,
     logger=settings.DEBUG,
     engineio_logger=settings.DEBUG,
     max_http_buffer_size=10 * 1024 * 1024,  # 10MB — handles large canvas PNG + audio
