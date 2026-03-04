@@ -16,7 +16,9 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/shared/Button";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { api } from "@/lib/api";
+import { formatDateIST, formatTimeIST } from "@/lib/dateUtils";
 import { useAuthStore } from "@/store/authStore";
 import type { Session } from "@/types";
 import toast from "react-hot-toast";
@@ -31,6 +33,8 @@ export default function DashboardPage() {
   // New session modal state
   const [showModal, setShowModal] = useState(false);
   const [subjectInput, setSubjectInput] = useState("");
+  // Delete session confirmation (session id or null)
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -70,19 +74,22 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteSession = async (
-    sessionId: string,
-    e: React.MouseEvent
-  ) => {
+  const handleDeleteClick = (sessionId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this session?")) return;
+    setSessionToDelete(sessionId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!sessionToDelete) return;
     try {
-      await api.deleteSession(sessionId);
-      setSessions(sessions.filter((s) => s.id !== sessionId));
+      await api.deleteSession(sessionToDelete);
+      setSessions(sessions.filter((s) => s.id !== sessionToDelete));
       toast.success("Session deleted");
     } catch (error: any) {
       toast.error("Failed to delete session");
+    } finally {
+      setSessionToDelete(null);
     }
   };
 
@@ -90,24 +97,6 @@ export default function DashboardPage() {
     logout();
     router.push("/");
     toast.success("Logged out successfully");
-  };
-
-  const formatDateInIST = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-    });
-  };
-
-  const formatTimeInIST = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
   };
 
   const getStatusColor = (status: string) => {
@@ -224,7 +213,7 @@ export default function DashboardPage() {
                           {session.status}
                         </span>
                         <button
-                          onClick={(e) => handleDeleteSession(session.id, e)}
+                          onClick={(e) => handleDeleteClick(session.id, e)}
                           className="p-2 rounded-lg bg-dark-900 hover:bg-red-500/20 border border-dark-700 hover:border-red-500 transition-all"
                           title="Delete session"
                         >
@@ -237,11 +226,11 @@ export default function DashboardPage() {
                       <div className="space-y-2 text-sm text-dark-200">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          <span>{formatDateInIST(session.startTime)}</span>
+                          <span>{formatDateIST(session.startTime)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4" />
-                          <span>{formatTimeInIST(session.startTime)}</span>
+                          <span>{formatTimeIST(session.startTime)}</span>
                         </div>
                       </div>
                       <div className="mt-6 pt-4 border-t border-dark-700/50">
@@ -328,6 +317,17 @@ export default function DashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Delete session confirmation ── */}
+      <ConfirmModal
+        open={sessionToDelete !== null}
+        onClose={() => setSessionToDelete(null)}
+        title="Delete session"
+        message="Are you sure you want to delete this session? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

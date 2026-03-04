@@ -24,7 +24,10 @@ class LLMWorker:
 
         try:
             intent_str = await ai_service.classify_intent(command_text)
-            intent = CommandIntent(intent_str)
+            try:
+                intent = CommandIntent(intent_str)
+            except ValueError:
+                intent = CommandIntent.OTHER
 
             db = SessionLocal()
             try:

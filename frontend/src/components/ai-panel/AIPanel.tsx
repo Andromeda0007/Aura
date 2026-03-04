@@ -11,6 +11,7 @@ import { SummaryDisplay } from './SummaryDisplay'
 import { ExplanationDisplay } from './ExplanationDisplay'
 import { DiagramDisplay } from './DiagramDisplay'
 import { useSessionStore } from '@/store/sessionStore'
+import { timeAgoIST } from '@/lib/dateUtils'
 import type { AIResponse } from '@/types'
 
 interface AIPanelProps {
@@ -28,13 +29,6 @@ const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: s
 
 function getTitle(r: AIResponse): string {
   return r.data?.title ?? r.data?.subject ?? TYPE_META[r.type]?.label ?? 'Response'
-}
-
-function timeAgo(isoStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000)
-  if (diff < 60)   return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  return `${Math.floor(diff / 3600)}h ago`
 }
 
 function renderContent(r: AIResponse) {
@@ -86,7 +80,6 @@ export function AIPanel({ onClose }: AIPanelProps) {
         <div className="h-12 border-b border-dark-700 flex items-center justify-between px-3 shrink-0 gap-3">
           {/* Logo */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
             <span className="font-semibold text-sm text-dark-50">Aura</span>
           </div>
 
@@ -258,7 +251,7 @@ export function AIPanel({ onClose }: AIPanelProps) {
 
                           {/* Right side */}
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className="text-[10px] text-dark-500">{timeAgo(item.timestamp)}</span>
+                            <span className="text-[10px] text-dark-500">{timeAgoIST(item.timestamp)}</span>
                             <ChevronRight className="w-3 h-3 text-dark-600 group-hover:text-dark-400 transition-colors" />
                           </div>
                         </button>

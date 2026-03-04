@@ -23,6 +23,7 @@ interface SessionState {
   updateCommand: (commandId: string, updates: Partial<Command>) => void
   setLatestAIResponse: (response: AIResponse | null) => void
   addToAIHistory: (response: AIResponse) => void
+  setAIHistory: (responses: AIResponse[]) => void
   clearAIHistory: () => void
   setCompressionStatus: (status: CompressionNotification | null) => void
   addTranscriptEntry: (entry: TranscriptEntry) => void
@@ -59,6 +60,8 @@ export const useSessionStore = create<SessionState>((set) => ({
   addToAIHistory: (response) => set((state) => ({
     aiHistory: [...state.aiHistory, response],
   })),
+
+  setAIHistory: (responses) => set({ aiHistory: responses }),
 
   clearAIHistory: () => set({ aiHistory: [] }),
 

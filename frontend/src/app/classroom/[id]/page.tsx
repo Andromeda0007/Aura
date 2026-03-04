@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Mic, MicOff, Play, Square, Home, Brain, Send } from 'lucide-react'
 import { Button } from '@/components/shared/Button'
+import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import { api } from '@/lib/api'
 import { wsClient } from '@/lib/websocket'
 import { useAuthStore } from '@/store/authStore'
@@ -14,7 +15,7 @@ import { VoiceIndicator } from '@/components/voice/VoiceIndicator'
 import { AudioCapture } from '@/components/audio/AudioCapture'
 import { CompressionNotification } from '@/components/classroom/CompressionNotification'
 import { LiveTranscript } from '@/components/transcript/LiveTranscript'
-import type { Session } from '@/types'
+import type { Session, AIResponse } from '@/types'
 import toast from 'react-hot-toast'
 
 export default function ClassroomPage() {
@@ -34,6 +35,8 @@ export default function ClassroomPage() {
     addTranscriptEntry,
     updateTranscriptEntry,
     addToAIHistory,
+    setAIHistory,
+    setLatestAIResponse,
   } = useSessionStore()
 
   const [isLoading, setIsLoading] = useState(true)
@@ -41,8 +44,19 @@ export default function ClassroomPage() {
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
   const [showAIPanel, setShowAIPanel] = useState(false)
+  const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false)
   const [auraInput, setAuraInput] = useState('')
   const [isAuraProcessing, setIsAuraProcessing] = useState(false)
+
+  // Backoff: stop spinner if no response within 90s (e.g. backend error or invalid command)
+  useEffect(() => {
+    if (!isAuraProcessing) return
+    const t = setTimeout(() => {
+      setIsAuraProcessing(false)
+      toast.error('Aura took too long — try rephrasing or check your connection.')
+    }, 90000)
+    return () => clearTimeout(t)
+  }, [isAuraProcessing])
 
   useEffect(() => {
     if (!_hasHydrated) return   // wait for localStorage to rehydrate
@@ -68,6 +82,28 @@ export default function ClassroomPage() {
           prev.forEach((t) =>
             addTranscriptEntry({ id: `db-${t.id}`, text: t.text, timestamp: t.timestamp, isFinal: true })
           )
+        }
+      } catch (_) {
+        // non-fatal — just skip if it fails
+      }
+
+      // Restore persisted AI history for this session
+      try {
+        const commands = await api.getSessionCommands(sessionId)
+        const completed = (commands as any[]).filter(
+          (c) => c.llm_response != null && c.status === 'completed'
+        )
+        if (completed.length > 0) {
+          const history: AIResponse[] = completed.map((c) => ({
+            type: c.type || 'answer',
+            data: c.llm_response ?? {},
+            commandId: c.id,
+            command: c.raw_command ?? '',
+            processingTime: c.processing_time_ms ?? 0,
+            timestamp: c.timestamp ?? new Date().toISOString(),
+          }))
+          setAIHistory(history)
+          setLatestAIResponse(history[history.length - 1])
         }
       } catch (_) {
         // non-fatal — just skip if it fails
@@ -125,10 +161,10 @@ export default function ClassroomPage() {
     wsClient.sendVoiceCommand(sessionId, fullCommand)
     setIsAuraProcessing(true)
     setAuraInput('')
-    toast('Asking Aura...', { icon: '🤖' })
   }
 
   const handleError = (data: any) => {
+    setIsAuraProcessing(false)
     toast.error(data.message || 'An error occurred')
   }
 
@@ -175,9 +211,11 @@ export default function ClassroomPage() {
     toast('Session paused', { icon: '⏸️' })
   }
 
-  const handleEndSession = async () => {
-    if (!confirm('Are you sure you want to end this session?')) return
+  const handleEndSessionClick = () => {
+    setShowEndSessionConfirm(true)
+  }
 
+  const handleConfirmEndSession = async () => {
     try {
       await api.endSession(sessionId)
       toast.success('Session ended')
@@ -227,7 +265,7 @@ export default function ClassroomPage() {
               Pause
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleEndSession}>
+          <Button variant="outline" size="sm" onClick={handleEndSessionClick}>
             End Session
           </Button>
         </div>
@@ -278,6 +316,16 @@ export default function ClassroomPage() {
 
         <div className="flex items-center gap-2 shrink-0">
           <Button
+            variant={showAIPanel ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => setShowAIPanel(!showAIPanel)}
+            className="flex items-center"
+            title={showAIPanel ? 'Close Aura panel' : 'Open Aura & History'}
+          >
+            <Brain className="w-3.5 h-3.5 mr-1.5" />
+            Aura
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={() => setShowTranscript(!showTranscript)}
@@ -310,6 +358,16 @@ export default function ClassroomPage() {
         isRecording={isRecording}
         isOpen={showTranscript}
         onToggle={() => setShowTranscript(!showTranscript)}
+      />
+
+      <ConfirmModal
+        open={showEndSessionConfirm}
+        onClose={() => setShowEndSessionConfirm(false)}
+        title="End session"
+        message="Are you sure you want to end this session?"
+        confirmLabel="End Session"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmEndSession}
       />
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Mic, FileText, X } from 'lucide-react'
+import { formatTimeWithSecondsIST } from '@/lib/dateUtils'
 
 interface TranscriptEntry {
   id: string
@@ -67,7 +68,7 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
               <div key={entry.id} className="group">
                 <p className="text-sm text-dark-50 leading-relaxed">{entry.text}</p>
                 <span className="text-[11px] text-dark-500">
-                  {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  {formatTimeWithSecondsIST(entry.timestamp)}
                 </span>
               </div>
             ))}

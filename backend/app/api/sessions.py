@@ -7,7 +7,7 @@ from uuid import UUID
 
 from ..core.database import get_db
 from ..core.security import get_current_teacher
-from ..models import User, Session as SessionModel, SessionStatus, Command, Transcript
+from ..models import User, Session as SessionModel, SessionStatus, Command, CommandIntent, Transcript
 
 router = APIRouter()
 
@@ -240,15 +240,26 @@ async def get_session_commands(
             detail="Session not found",
         )
     
-    commands = db.query(Command).filter(Command.session_id == session_id).order_by(Command.timestamp.desc()).all()
-    
+    commands = db.query(Command).filter(Command.session_id == session_id).order_by(Command.timestamp.asc()).all()
+    intent_to_type = {
+        CommandIntent.GENERATE_QUIZ: "quiz",
+        CommandIntent.SUMMARIZE: "summary",
+        CommandIntent.EXPLAIN: "explanation",
+        CommandIntent.GENERATE_EXAMPLE: "example",
+        CommandIntent.GENERATE_DIAGRAM: "diagram",
+        CommandIntent.ANSWER_QUESTION: "answer",
+        CommandIntent.OTHER: "answer",
+    }
     return [
         {
             "id": str(cmd.id),
             "raw_command": cmd.raw_command,
-            "intent": cmd.intent,
-            "status": cmd.status,
-            "timestamp": cmd.timestamp,
+            "intent": cmd.intent.value if hasattr(cmd.intent, "value") else str(cmd.intent),
+            "type": intent_to_type.get(cmd.intent, "answer"),
+            "status": cmd.status.value if hasattr(cmd.status, "value") else str(cmd.status),
+            "timestamp": cmd.timestamp.isoformat() if cmd.timestamp else None,
+            "llm_response": cmd.llm_response,
+            "processing_time_ms": cmd.processing_time_ms,
         }
         for cmd in commands
     ]
