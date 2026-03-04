@@ -39,7 +39,6 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
     rec.maxAlternatives = 1
 
     rec.onstart = () => {
-      console.log('🎙️ Speech recognition active')
       onLiveTranscriptRef.current?.('🎙 Listening…', false)
     }
 
@@ -64,13 +63,11 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
         if (triggerIdx !== -1) {
           // Extract everything after "hey aura" as the command
           const command = text.slice(triggerIdx).trim()
-          console.log(`🤖 Hey Aura detected → sending command: "${command.slice(0, 80)}"`)
           wsClient.sendVoiceCommand(sessionId, command)
         }
 
         // Always also save transcript for context
         wsClient.sendTranscriptText(sessionId, text)
-        console.log(`📤 Transcript → backend: "${text.slice(0, 80)}"`)
       }
     }
 

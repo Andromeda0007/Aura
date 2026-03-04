@@ -50,7 +50,6 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
       const saved = localStorage.getItem(storageKey(sessionId))
       if (saved) {
         loadSnapshot(e.store, JSON.parse(saved))
-        console.log('📂 Whiteboard state restored')
       }
     } catch (err) {
       console.warn('Could not restore whiteboard state:', err)
@@ -78,7 +77,6 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
     if (!editor || !isRecording) return
 
     intervalTimer.current = setInterval(() => {
-      console.log('📸 30s snapshot...')
       saveState(editor)
       captureSnapshot()
     }, 30000)
@@ -126,7 +124,6 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
         })
       }
 
-      console.log(`✅ Whiteboard captured (${(imageData.length / 1024).toFixed(1)} KB)`)
       wsClient.sendCanvasSnapshot(sessionId, null, imageData, pageNumber)
     } catch (error) {
       console.error('❌ Snapshot failed:', error)

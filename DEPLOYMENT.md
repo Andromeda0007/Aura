@@ -88,10 +88,7 @@ git push origin main
    LOG_LEVEL         = INFO
    ```
 
-5. Deploy, then initialize DB via Render Shell:
-   ```bash
-   python ../scripts/init_db.py
-   ```
+5. Deploy. The API creates database tables automatically on first startup.
 
 ### Step 4: Deploy Frontend (Vercel)
 
