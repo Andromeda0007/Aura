@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/shared/Button";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { api } from "@/lib/api";
+import { config } from "@/lib/constants";
 import { formatDateIST, formatTimeIST } from "@/lib/dateUtils";
 import { useAuthStore } from "@/store/authStore";
 import type { Session } from "@/types";
@@ -132,7 +133,7 @@ export default function DashboardPage() {
             <div className="w-8 h-8 bg-dark-800 rounded-lg flex items-center justify-center border-2 border-primary-500/50">
               <Brain className="w-5 h-5 text-primary-500" />
             </div>
-            <span className="text-xl font-bold text-dark-50">Aura</span>
+            <span className="text-xl font-bold text-dark-50">{config.appName}</span>
           </button>
 
           <div className="flex items-center gap-4">
@@ -180,7 +181,7 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-xl font-semibold text-dark-50 mb-2">No sessions yet</h3>
               <p className="text-dark-200 mb-6 max-w-md mx-auto">
-                Create your first teaching session to start using Aura's AI-powered assistance
+                Create your first teaching session to start using {config.appName}'s AI-powered assistance
               </p>
               <Button
                 variant="primary"

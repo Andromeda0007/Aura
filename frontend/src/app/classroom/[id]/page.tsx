@@ -7,6 +7,7 @@ import { Button } from '@/components/shared/Button'
 import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import { api } from '@/lib/api'
 import { wsClient } from '@/lib/websocket'
+import { config } from '@/lib/constants'
 import { useAuthStore } from '@/store/authStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { WhiteboardCanvas } from '@/components/whiteboard/WhiteboardCanvas'
@@ -53,7 +54,7 @@ export default function ClassroomPage() {
     if (!isAuraProcessing) return
     const t = setTimeout(() => {
       setIsAuraProcessing(false)
-      toast.error('Aura took too long — try rephrasing or check your connection.')
+      toast.error(`${config.appName} took too long — try rephrasing or check your connection.`)
     }, 90000)
     return () => clearTimeout(t)
   }, [isAuraProcessing])
@@ -294,7 +295,7 @@ export default function ClassroomPage() {
               type="text"
               value={auraInput}
               onChange={(e) => setAuraInput(e.target.value)}
-              placeholder={isAuraProcessing ? 'Aura is thinking…' : 'Ask Aura anything… e.g. "generate a quiz"'}
+              placeholder={isAuraProcessing ? `${config.appName} is thinking…` : `Ask ${config.appName} anything… e.g. "generate a quiz"`}
               disabled={isAuraProcessing || !isConnected}
               className="w-full h-7 bg-dark-700 border border-dark-600 rounded-md px-3 text-xs text-dark-50 placeholder-dark-400 focus:outline-none focus:border-primary-500 disabled:opacity-50"
             />
@@ -320,10 +321,10 @@ export default function ClassroomPage() {
             size="sm"
             onClick={() => setShowAIPanel(!showAIPanel)}
             className="flex items-center"
-            title={showAIPanel ? 'Close Aura panel' : 'Open Aura & History'}
+            title={showAIPanel ? `Close ${config.appName} panel` : `Open ${config.appName} & History`}
           >
             <Brain className="w-3.5 h-3.5 mr-1.5" />
-            Aura
+            {config.appName}
           </Button>
           <Button
             variant="outline"

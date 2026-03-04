@@ -1,5 +1,5 @@
 """
-STT Worker — receives plain text from browser Web Speech API, saves to storage.
+STT Worker — receives plain text from browser Web Speech API, saves to DB.
 """
 
 import asyncio
@@ -8,7 +8,6 @@ import os
 import re
 import tempfile
 from datetime import datetime
-from pathlib import Path
 
 import whisper
 import structlog
@@ -105,10 +104,6 @@ class STTWorker:
             logger.info("━" * 60)
 
             if text:
-                # ① Save plain text file to storage
-                await self._save_text_file(session_id, chunk_id, text)
-
-                # ② Save to DB
                 await self._save_db(session_id, text, timestamp)
 
                 # ③ Push to frontend live
@@ -146,40 +141,7 @@ class STTWorker:
         logger.info(f"🎤 {text}")
         logger.info("━" * 60)
 
-        await self._append_to_session_file(session_id, text)
         await self._save_db(session_id, text, timestamp)
-
-    async def _append_to_session_file(self, session_id: str, text: str):
-        """Append each sentence to a single transcript.txt per session."""
-        try:
-            storage_root   = Path(settings.LOCAL_STORAGE_PATH)
-            transcript_dir = storage_root / "Transcripts" / session_id
-            transcript_dir.mkdir(parents=True, exist_ok=True)
-
-            fname = transcript_dir / "transcript.txt"
-            ts    = datetime.utcnow().strftime("%H:%M:%S")
-            line  = f"[{ts}] {text}\n"
-
-            with open(fname, "a", encoding="utf-8") as f:
-                f.write(line)
-
-            logger.info(f"✅ Appended to {fname}")
-        except Exception as e:
-            logger.error("Transcript append failed", error=str(e))
-
-    async def _save_text_file(self, session_id: str, chunk_id: str, text: str):
-        """Save transcript as a plain .txt file — easy to read/review."""
-        try:
-            storage_root = Path(settings.LOCAL_STORAGE_PATH)
-            transcript_dir = storage_root / "Transcripts" / session_id
-            transcript_dir.mkdir(parents=True, exist_ok=True)
-
-            ts = datetime.utcnow().strftime("%H%M%S")
-            fname = transcript_dir / f"chunk_{chunk_id}_{ts}.txt"
-            fname.write_text(text, encoding="utf-8")
-            logger.info(f"✅ Text saved: {fname}")
-        except Exception as e:
-            logger.error("Text file save failed", error=str(e))
 
     async def _save_db(self, session_id: str, text: str, timestamp: str):
         db = SessionLocal()

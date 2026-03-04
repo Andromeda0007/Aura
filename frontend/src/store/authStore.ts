@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, AuthTokens } from '@/types'
+import { storageKeys } from '@/lib/constants'
 
 interface AuthState {
   user: User | null
@@ -32,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
-      name: 'aura-auth-storage',
+      name: storageKeys.auth,
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
       },

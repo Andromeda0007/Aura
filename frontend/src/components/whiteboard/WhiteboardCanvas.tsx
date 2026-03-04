@@ -4,23 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import { Tldraw, Editor, exportToBlob, getSnapshot, loadSnapshot } from '@tldraw/tldraw'
 import '@tldraw/tldraw/tldraw.css'
 import { wsClient } from '@/lib/websocket'
+import { storageKeys } from '@/lib/constants'
 
 interface WhiteboardCanvasProps {
   sessionId: string
   isRecording: boolean
 }
 
-const storageKey = (id: string) => `aura-whiteboard-${id}`
-
 export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasProps) {
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [pageNumber]        = useState(1)
-  const intervalTimer       = useRef<NodeJS.Timeout | null>(null)
+  const [pageNumber] = useState(1)
+  const intervalTimer = useRef<NodeJS.Timeout | null>(null)
 
   const saveState = (e: Editor) => {
     try {
       const snapshot = getSnapshot(e.store)
-      localStorage.setItem(storageKey(sessionId), JSON.stringify(snapshot))
+      localStorage.setItem(storageKeys.whiteboard(sessionId), JSON.stringify(snapshot))
     } catch (err) {
       console.warn('Could not save whiteboard state:', err)
     }
@@ -47,7 +46,7 @@ export function WhiteboardCanvas({ sessionId, isRecording }: WhiteboardCanvasPro
 
     // ── Restore saved whiteboard state first ─────────────────
     try {
-      const saved = localStorage.getItem(storageKey(sessionId))
+      const saved = localStorage.getItem(storageKeys.whiteboard(sessionId))
       if (saved) {
         loadSnapshot(e.store, JSON.parse(saved))
       }

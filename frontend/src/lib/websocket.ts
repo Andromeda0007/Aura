@@ -1,7 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import type { WSMessage, WSMessageType } from '@/types'
-
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+import { config } from '@/lib/constants'
 
 class WebSocketClient {
   private socket: Socket | null = null
@@ -15,7 +14,7 @@ class WebSocketClient {
       return
     }
 
-    this.socket = io(WS_URL, {
+    this.socket = io(config.wsUrl, {
       auth: { token },
       query: { session_id: sessionId },
       transports: ['websocket'],

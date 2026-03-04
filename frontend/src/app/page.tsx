@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Brain, Sparkles, Zap, MessageSquare, BarChart3, Shield, Layers } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { config } from '@/lib/constants'
 
 export default function HomePage() {
   const router = useRouter()
@@ -32,7 +33,7 @@ export default function HomePage() {
     {
       icon: MessageSquare,
       title: 'Voice Commands',
-      description: 'Just say "Hey Aura" - no keyboard needed during teaching',
+      description: `Just say "Hey ${config.appName}" - no keyboard needed during teaching`,
     },
     {
       icon: BarChart3,
@@ -59,7 +60,7 @@ export default function HomePage() {
             <div className="w-8 h-8 bg-dark-800 rounded-lg flex items-center justify-center border-2 border-primary-500/50">
               <Brain className="w-5 h-5 text-primary-500" />
             </div>
-            <span className="text-xl font-bold text-dark-50">Aura</span>
+            <span className="text-xl font-bold text-dark-50">{config.appName}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -94,12 +95,12 @@ export default function HomePage() {
               </h1>
 
               <p className="text-xl md:text-2xl text-dark-200 mb-10 max-w-3xl mx-auto leading-relaxed">
-                Aura fuses what you draw with what you say, creating intelligent context that helps you teach better. Generate quizzes, answer questions, and engage students in real-time.
+                {config.appName} fuses what you draw with what you say, creating intelligent context that helps you teach better. Generate quizzes, answer questions, and engage students in real-time.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/auth/signup" className="btn-primary btn-xl w-full sm:w-auto">
-                  Start Teaching with Aura
+                  Start Teaching with {config.appName}
                 </Link>
                 <Link href="#features" className="btn-outline btn-xl w-full sm:w-auto">
                   Learn More
@@ -194,7 +195,7 @@ export default function HomePage() {
               <div className="w-6 h-6 bg-dark-800 rounded-lg flex items-center justify-center border border-primary-500/50">
                 <Brain className="w-4 h-4 text-primary-500" />
               </div>
-              <span className="font-bold text-dark-50">Aura</span>
+              <span className="font-bold text-dark-50">{config.appName}</span>
             </div>
             <p className="text-dark-300 text-sm">Built for educators, powered by AI</p>
             <div className="flex items-center gap-6 text-sm text-dark-300">

@@ -6,6 +6,7 @@ import { Lightbulb, BookOpen, MessageCircle, Send, CheckCircle2, XCircle, Loader
 import { Button } from '../shared/Button'
 import { useSessionStore } from '@/store/sessionStore'
 import { api } from '@/lib/api'
+import { config } from '@/lib/constants'
 
 interface ExplanationDisplayProps {
   data: {
@@ -139,7 +140,7 @@ export function ExplanationDisplay({ data, type }: ExplanationDisplayProps) {
                   )}
                 </Button>
               </div>
-              <p className="text-[10px] text-dark-500">Press Enter to submit · Aura will check your work</p>
+              <p className="text-[10px] text-dark-500">Press Enter to submit · {config.appName} will check your work</p>
             </motion.div>
           ) : (
             <motion.div

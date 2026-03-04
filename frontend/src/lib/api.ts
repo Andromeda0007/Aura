@@ -1,26 +1,25 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import type { 
-  User, 
-  Session, 
-  Quiz, 
-  LoginCredentials, 
-  SignupData, 
+import type {
+  User,
+  Session,
+  Quiz,
+  LoginCredentials,
+  SignupData,
   AuthTokens,
-  APIError 
+  APIError,
 } from '@/types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { config, storageKeys } from '@/lib/constants'
 
 class APIClient {
   private client: AxiosInstance
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_URL}/api`,
+      baseURL: `${config.apiUrl}/api`,
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 30000,
+      timeout: config.apiTimeoutMs,
     })
 
     this.client.interceptors.request.use(
@@ -50,7 +49,7 @@ class APIClient {
 
   private getTokens(): AuthTokens | null {
     if (typeof window === 'undefined') return null
-    const stored = localStorage.getItem('aura-auth-storage')
+    const stored = localStorage.getItem(storageKeys.auth)
     if (!stored) return null
     try {
       const parsed = JSON.parse(stored)
@@ -62,7 +61,7 @@ class APIClient {
 
   private clearTokens(): void {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('aura-auth-storage')
+      localStorage.removeItem(storageKeys.auth)
     }
   }
 

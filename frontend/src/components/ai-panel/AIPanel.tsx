@@ -12,6 +12,7 @@ import { ExplanationDisplay } from './ExplanationDisplay'
 import { DiagramDisplay } from './DiagramDisplay'
 import { useSessionStore } from '@/store/sessionStore'
 import { timeAgoIST } from '@/lib/dateUtils'
+import { config } from '@/lib/constants'
 import type { AIResponse } from '@/types'
 
 interface AIPanelProps {
@@ -80,7 +81,7 @@ export function AIPanel({ onClose }: AIPanelProps) {
         <div className="h-12 border-b border-dark-700 flex items-center justify-between px-3 shrink-0 gap-3">
           {/* Logo */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="font-semibold text-sm text-dark-50">Aura</span>
+            <span className="font-semibold text-sm text-dark-50">{config.appName}</span>
           </div>
 
           {/* Tabs */}
@@ -209,7 +210,7 @@ export function AIPanel({ onClose }: AIPanelProps) {
                   <History className="w-10 h-10 text-dark-600" />
                   <div>
                     <p className="text-dark-400 text-sm font-medium">No history yet</p>
-                    <p className="text-dark-500 text-xs mt-1">Responses you ask Aura will appear here</p>
+                    <p className="text-dark-500 text-xs mt-1">Responses you ask {config.appName} will appear here</p>
                   </div>
                 </div>
               ) : (

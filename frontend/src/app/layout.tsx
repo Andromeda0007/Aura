@@ -9,11 +9,13 @@ const inter = Inter({
   display: 'swap',
 })
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Aura'
+
 export const metadata: Metadata = {
-  title: 'Aura - AI-Powered Teaching Assistant',
+  title: `${APP_NAME} - AI-Powered Teaching Assistant`,
   description: 'Transform your smartboard lectures with real-time AI assistance. Generate quizzes, summaries, and interactive content instantly.',
   keywords: ['AI', 'teaching', 'education', 'smartboard', 'whiteboard', 'assistant'],
-  authors: [{ name: 'Aura Team' }],
+  authors: [{ name: `${APP_NAME} Team` }],
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   themeColor: '#1B1B1F',
 }

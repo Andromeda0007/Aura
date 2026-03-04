@@ -85,6 +85,7 @@ Aura-New/
 │   │       └── DiagramDisplay.tsx       # Mermaid renderer + PubChem chemistry
 │   ├── lib/
 │   │   ├── api.ts                   # Axios client (auth, sessions, validate-answer)
+│   │   ├── constants.ts             # API/WS URLs, app name, storage keys (from env)
 │   │   └── websocket.ts             # Socket.IO client
 │   └── store/sessionStore.ts        # Zustand (session, transcript, AI history)
 │
@@ -102,8 +103,9 @@ Aura-New/
 │       └── ai_service.py            # Groq/Gemini wrapper (classify, quiz, summary,
 │                                    #   explain, example, diagram, validate_answer)
 │
-├── docker-compose.yml
-└── .env
+├── docker-compose.yml               # Local dev: postgres + backend + frontend
+├── Dockerfile.backend               # Production backend image (Render; build from repo root)
+└── .env                             # Local env (gitignored); see Quick Start
 ```
 
 ---
@@ -123,31 +125,51 @@ Aura-New/
 
 ---
 
-## Quick Start
+## Quick Start (local with Docker)
 
 **Prerequisites:** Docker Desktop, Chrome browser, Groq API key (free at [console.groq.com](https://console.groq.com))
 
-**1. Clone and configure `.env`:**
+**1. Clone and configure `.env` in the project root:**
 ```env
 DATABASE_URL=postgresql://aura_user:aura_dev_password@localhost:5432/aura_db
 JWT_SECRET=your-random-secret-key
 GROQ_API_KEY=your-groq-key
-LOCAL_STORAGE_PATH=/storage
+GEMINI_API_KEY=
+ALLOWED_ORIGINS=http://localhost:3000
 ENVIRONMENT=development
 ```
 
-**2. Create host storage folders:**
-```
-D:/Aura-Storage/Images/
-D:/Aura-Storage/Transcripts/
-```
-
-**3. Start:**
+**2. Start:**
 ```bash
 docker-compose up -d
 ```
 
-**4. Open:** http://localhost:3000
+**3. Open:** http://localhost:3000 — frontend talks to backend at http://localhost:8000 (set in compose). All persistent data (transcripts, whiteboard OCR, sessions) is stored in the database; no file storage required.
+
+---
+
+## Deployed (Render + Vercel)
+
+| Service   | URL |
+|----------|-----|
+| Frontend | https://aura-frontend-liard.vercel.app |
+| Backend  | https://aura-backend-9r7p.onrender.com |
+
+**Backend (Render)** — set in Environment:
+- `DATABASE_URL` — from Render Postgres (Internal or External URL)
+- `JWT_SECRET` — strong random secret
+- `GROQ_API_KEY`, `GEMINI_API_KEY` — AI keys
+- `ALLOWED_ORIGINS=https://aura-frontend-liard.vercel.app`
+- `ENVIRONMENT=production`
+
+Use **Dockerfile path:** `Dockerfile.backend`, **Root Directory:** (empty). Build context is repo root.
+
+**Frontend (Vercel)** — set in Project → Settings → Environment Variables:
+- `NEXT_PUBLIC_API_URL=https://aura-backend-9r7p.onrender.com`
+- `NEXT_PUBLIC_WS_URL=wss://aura-backend-9r7p.onrender.com`
+- `NEXT_PUBLIC_APP_NAME=Aura` (optional; default "Aura")
+
+Root Directory: `frontend`.
 
 ---
 

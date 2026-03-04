@@ -8,6 +8,7 @@ import { Mail, Lock, User, Brain, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/shared/Button'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { config } from '@/lib/constants'
 import toast from 'react-hot-toast'
 
 export default function SignupPage() {
@@ -61,7 +62,7 @@ export default function SignupPage() {
             <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center border-2 border-primary-500/50">
               <Brain className="w-6 h-6 text-primary-500" />
             </div>
-            <span className="text-2xl font-bold text-dark-50">Aura</span>
+            <span className="text-2xl font-bold text-dark-50">{config.appName}</span>
           </Link>
 
           <div className="card p-8">
@@ -69,7 +70,7 @@ export default function SignupPage() {
               Create Account
             </h1>
             <p className="text-dark-200 mb-8">
-              Join Aura and transform your teaching experience
+              Join {config.appName} and transform your teaching experience
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">

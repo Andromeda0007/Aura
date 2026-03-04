@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from ..core.database import get_db
+from ..core.config import get_settings
 from ..core.security import (
     verify_password,
     get_password_hash,
@@ -81,13 +82,14 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
+    settings = get_settings()
     access_token = create_access_token(data={"sub": str(new_user.id)})
-    
+    expires_seconds = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     return AuthResponse(
         user=UserResponse.model_validate(new_user),
         tokens=TokenResponse(
             access_token=access_token,
-            expires_in=480 * 60,
+            expires_in=expires_seconds,
         ),
     )
 
@@ -110,14 +112,14 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     
     user.last_login = datetime.utcnow()
     db.commit()
-    
+    settings = get_settings()
     access_token = create_access_token(data={"sub": str(user.id)})
-    
+    expires_seconds = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     return AuthResponse(
         user=UserResponse.model_validate(user),
         tokens=TokenResponse(
             access_token=access_token,
-            expires_in=480 * 60,
+            expires_in=expires_seconds,
         ),
     )
 
