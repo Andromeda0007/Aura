@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 from functools import lru_cache
 
 
@@ -26,7 +27,14 @@ class Settings(BaseSettings):
     STORAGE_BUCKET: str = "aura-storage"
     
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
-    
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
+
     MAX_CONCURRENT_SESSIONS: int = 100
     COMPRESSION_TOKEN_LIMIT: int = 10000
     
