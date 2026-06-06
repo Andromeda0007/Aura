@@ -58,7 +58,8 @@ class AIService:
         prompt = f"""Classify the following command into one of these intents:
 - generate_quiz: User wants to create a quiz or test questions
 - summarize: User wants a summary of the lecture
-- explain: User wants an explanation of a concept
+- explain: User wants an explanation, definition, or "ask AI" about a concept, including next topics to cover
+- format_board: User wants to clean up, reformat, or organize whiteboard content into structured text
 - generate_example: User wants a worked example, numerical problem, or practice problem
 - generate_diagram: User wants a diagram, flowchart, chart, visual, molecular structure, chemical structure, or any graphical representation
 - answer_question: User is asking a specific factual question
@@ -70,7 +71,7 @@ Respond with ONLY the intent name, nothing else."""
 
         try:
             intent = self._generate(prompt, model="fast").lower().strip()
-            valid = ["generate_quiz", "summarize", "explain",
+            valid = ["generate_quiz", "summarize", "explain", "format_board",
                      "generate_example", "generate_diagram", "answer_question", "other"]
             if intent not in valid:
                 intent = "other"
@@ -153,19 +154,27 @@ Respond ONLY with valid JSON in this format:
             raise
 
     async def explain_concept(self, context: str, command: str) -> Dict[str, Any]:
-        prompt = f"""Based on the lecture context, explain the concept requested by the user.
+        prompt = f"""You are an expert teaching assistant. Based on the whiteboard content and lecture context, explain the topic clearly for a classroom setting.
 
 LECTURE CONTEXT:
 {context}
 
 USER REQUEST: {command}
 
-Provide a clear, concise explanation.
+Provide:
+1. The name of the concept/topic
+2. A short, precise definition (1-2 sentences, textbook quality)
+3. A clear classroom explanation (3-5 sentences, simple language)
+4. 4-5 related topics the teacher should cover next in this subject
+5. 3 questions students are likely to ask about this topic
 
 Respond ONLY with valid JSON:
 {{
   "title": "Concept Name",
-  "content": "Detailed explanation"
+  "definition": "Short precise textbook-style definition",
+  "explanation": "Clear classroom-friendly explanation",
+  "nextTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4"],
+  "nextQuestions": ["Question students might ask 1?", "Question 2?", "Question 3?"]
 }}"""
 
         try:
@@ -179,6 +188,44 @@ Respond ONLY with valid JSON:
             return explanation
         except Exception as e:
             logger.error("Explanation generation failed", error=str(e))
+            raise
+
+    async def format_board_content(self, context: str) -> Dict[str, Any]:
+        """Read whiteboard content and return as clean labeled blocks."""
+        prompt = f"""You are reading a teacher's whiteboard. Extract every distinct topic, concept, or item written on it and return them as a clean ordered list.
+
+CONTEXT (look for WHITEBOARD CONTENT section especially):
+{context}
+
+Rules:
+- Each distinct word, topic, heading, or item → one entry in the "blocks" array
+- Fix handwriting / spelling (e.g. "evaporation" → "Evaporation")
+- If there is a short supporting phrase under a heading, combine: "Evaporation — water turns to vapor"
+- Order top-to-bottom, left-to-right as they appear on the board
+- Maximum 10 blocks
+- Keep each block SHORT (under 80 characters)
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{{
+  "title": "Cleaned Board",
+  "blocks": ["First topic", "Second topic", "Third item"]
+}}"""
+
+        try:
+            text = self._generate(prompt, model="smart")
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            result = json.loads(text.strip())
+            if "blocks" not in result:
+                fallback = result.get("formattedText", "")
+                result["blocks"] = [l.strip() for l in fallback.split("\n") if l.strip()][:10]
+            result["blocks"] = [b for b in result["blocks"] if isinstance(b, str) and b.strip()]
+            logger.info("Board formatted as blocks", count=len(result.get("blocks", [])))
+            return result
+        except Exception as e:
+            logger.error("Board formatting failed", error=str(e))
             raise
 
     async def generate_example(self, context: str, command: str) -> Dict[str, Any]:

@@ -13,6 +13,9 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
   const recognition         = useRef<any>(null)
   const isActive            = useRef(false)
   const onLiveTranscriptRef = useRef(onLiveTranscript)
+  const silenceTimer        = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingInterim      = useRef('')
+
   useEffect(() => { onLiveTranscriptRef.current = onLiveTranscript }, [onLiveTranscript])
 
   useEffect(() => {
@@ -20,9 +23,18 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
     startRecognition()
     return () => {
       isActive.current = false
+      if (silenceTimer.current) clearTimeout(silenceTimer.current)
       recognition.current?.stop()
     }
   }, [])
+
+  const flushInterim = () => {
+    const text = pendingInterim.current.trim()
+    if (!text) return
+    pendingInterim.current = ''
+    onLiveTranscriptRef.current?.(text, true)
+    wsClient.sendTranscriptText(sessionId, text)
+  }
 
   const startRecognition = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -39,7 +51,7 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
     rec.maxAlternatives = 1
 
     rec.onstart = () => {
-      onLiveTranscriptRef.current?.('🎙 Listening…', false)
+      onLiveTranscriptRef.current?.('Listening...', false)
     }
 
     rec.onresult = (e: any) => {
@@ -51,22 +63,18 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
         else interim += t
       }
 
-      if (interim) onLiveTranscriptRef.current?.(interim.trim(), false)
+      if (interim) {
+        pendingInterim.current = (pendingInterim.current + ' ' + interim).trim()
+        onLiveTranscriptRef.current?.(pendingInterim.current, false)
+        if (silenceTimer.current) clearTimeout(silenceTimer.current)
+        silenceTimer.current = setTimeout(flushInterim, 2000)
+      }
 
       if (final.trim()) {
+        if (silenceTimer.current) clearTimeout(silenceTimer.current)
+        pendingInterim.current = ''
         const text = final.trim()
         onLiveTranscriptRef.current?.(text, true)
-
-        // Check for "Hey Aura" command BEFORE saving transcript
-        const lower = text.toLowerCase()
-        const triggerIdx = lower.indexOf('hey aura')
-        if (triggerIdx !== -1) {
-          // Extract everything after "hey aura" as the command
-          const command = text.slice(triggerIdx).trim()
-          wsClient.sendVoiceCommand(sessionId, command)
-        }
-
-        // Always also save transcript for context
         wsClient.sendTranscriptText(sessionId, text)
       }
     }
@@ -78,9 +86,7 @@ export function AudioCapture({ sessionId, onError, onLiveTranscript }: AudioCapt
     }
 
     rec.onend = () => {
-      // Only restart if THIS instance is still the active one.
-      // Prevents StrictMode double-mount: old rec's onend fires after new mount
-      // sets isActive=true, which would cause a runaway restart loop.
+      flushInterim()
       if (isActive.current && recognition.current === rec) {
         setTimeout(() => {
           if (isActive.current && recognition.current === rec) {

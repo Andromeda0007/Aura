@@ -8,6 +8,8 @@ class WebSocketClient {
   private maxReconnectAttempts = 5
   private reconnectDelay = 1000
   private messageHandlers: Map<WSMessageType, Set<(data: any) => void>> = new Map()
+  onConnectCallback?: () => void
+  onDisconnectCallback?: () => void
 
   connect(sessionId: string, token: string): void {
     if (this.socket?.connected) {
@@ -26,9 +28,11 @@ class WebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
+      this.onConnectCallback?.()
     })
 
     this.socket.on('disconnect', (reason) => {
+      this.onDisconnectCallback?.()
     })
 
     this.socket.on('connect_error', (error) => {
@@ -128,10 +132,12 @@ class WebSocketClient {
     })
   }
 
-  sendVoiceCommand(sessionId: string, command: string): void {
+  sendVoiceCommand(sessionId: string, command: string, confirmedInsights: string[] = [], imageData?: string | null): void {
     this.send('voice_command', {
       sessionId,
       command,
+      confirmedInsights,
+      imageData: imageData ?? null,
       timestamp: new Date().toISOString(),
     })
   }

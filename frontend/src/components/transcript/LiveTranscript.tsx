@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Mic, FileText, X } from 'lucide-react'
+import { Mic, FileText, X, Loader2, ClipboardList } from 'lucide-react'
 import { formatTimeWithSecondsIST } from '@/lib/dateUtils'
 
 interface TranscriptEntry {
@@ -16,9 +16,11 @@ interface LiveTranscriptProps {
   isRecording: boolean
   isOpen: boolean
   onToggle: () => void
+  onSummarizeToCanvas?: () => void
+  isSummarizing?: boolean
 }
 
-export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveTranscriptProps) {
+export function LiveTranscript({ entries, isRecording, isOpen, onToggle, onSummarizeToCanvas, isSummarizing }: LiveTranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -29,9 +31,9 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
 
   if (!isOpen) return null
 
-  // Separate interim from final
   const interimEntry = entries.find(e => e.id === 'live-interim')
   const finalEntries = entries.filter(e => e.id !== 'live-interim')
+  const hasContent   = finalEntries.length > 0 || !!interimEntry
 
   return (
     <div className="fixed bottom-20 right-6 w-96 max-h-[520px] flex flex-col z-[9999] rounded-xl border border-dark-700 bg-dark-800 shadow-2xl overflow-hidden">
@@ -53,8 +55,8 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
       </div>
 
       {/* Body */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ maxHeight: '420px' }}>
-        {finalEntries.length === 0 && !interimEntry ? (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ maxHeight: '380px' }}>
+        {!hasContent ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <div className="p-3 rounded-lg bg-dark-700 border border-dark-600 mb-3">
               <Mic className="w-5 h-5 text-dark-400" />
@@ -72,8 +74,6 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
                 </span>
               </div>
             ))}
-
-            {/* Interim / live typing */}
             {interimEntry && (
               <div className="border-l-2 border-primary-500/60 pl-3">
                 <p className="text-sm text-dark-300 italic leading-relaxed">{interimEntry.text}</p>
@@ -85,13 +85,23 @@ export function LiveTranscript({ entries, isRecording, isOpen, onToggle }: LiveT
       </div>
 
       {/* Footer */}
-      {(finalEntries.length > 0 || interimEntry) && (
-        <div className="px-4 py-2 border-t border-dark-700 text-center">
-          <p className="text-[11px] text-dark-500">
-            {finalEntries.length} {finalEntries.length === 1 ? 'sentence' : 'sentences'} transcribed
-          </p>
-        </div>
-      )}
+      <div className="px-4 py-2 border-t border-dark-700 flex items-center justify-between gap-2">
+        <p className="text-[11px] text-dark-500">
+          {finalEntries.length} {finalEntries.length === 1 ? 'sentence' : 'sentences'} transcribed
+        </p>
+        {onSummarizeToCanvas && hasContent && (
+          <button
+            onClick={onSummarizeToCanvas}
+            disabled={isSummarizing}
+            className="flex items-center gap-1.5 text-xs bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isSummarizing
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <ClipboardList className="w-3.5 h-3.5" />}
+            {isSummarizing ? 'Summarizing…' : 'Summarize to Board'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

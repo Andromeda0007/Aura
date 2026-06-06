@@ -18,16 +18,24 @@ class LLMWorker:
         command_text = data.get("command")
         timestamp_str = data.get("timestamp")
         sid = data.get("sid")
+        confirmed_insights = data.get("confirmed_insights", [])
 
         logger.info("Processing command", session_id=session_id, command=command_text[:50])
         start_time = time.time()
 
         try:
             intent_str = await ai_service.classify_intent(command_text)
-            try:
-                intent = CommandIntent(intent_str)
-            except ValueError:
-                intent = CommandIntent.OTHER
+
+            # format_board is not in the DB enum (would need a migration).
+            # Store it as EXPLAIN so the DB insert succeeds; execution routes separately.
+            is_format_board = (intent_str == "format_board")
+            if is_format_board:
+                intent = CommandIntent.EXPLAIN
+            else:
+                try:
+                    intent = CommandIntent(intent_str)
+                except ValueError:
+                    intent = CommandIntent.OTHER
 
             db = SessionLocal()
             try:
@@ -49,8 +57,10 @@ class LLMWorker:
             finally:
                 db.close()
 
-            context = await self._get_context(session_id)
-            response_data = await self._execute_intent(intent, context, command_text, session_id, command_id)
+            context = await self._get_context(session_id, confirmed_insights)
+            response_data = await self._execute_intent(
+                intent, context, command_text, session_id, command_id, is_format_board
+            )
 
             processing_time = int((time.time() - start_time) * 1000)
 
@@ -75,7 +85,7 @@ class LLMWorker:
                 CommandIntent.ANSWER_QUESTION:  'answer',
                 CommandIntent.OTHER:            'answer',
             }
-            response_type = type_map.get(intent, 'answer')
+            response_type = 'format_board' if is_format_board else type_map.get(intent, 'answer')
 
             # Send directly via WebSocket
             if sid:
@@ -97,7 +107,7 @@ class LLMWorker:
                 from ..websocket.connection import send_to_client
                 await send_to_client(sid, 'error', {'message': 'Command processing failed'})
 
-    async def _get_context(self, session_id: str) -> str:
+    async def _get_context(self, session_id: str, confirmed_insights: list = None) -> str:
         """Build context from DB: compressed history + recent transcripts."""
         db = SessionLocal()
         try:
@@ -133,13 +143,21 @@ class LLMWorker:
 
             context = f"{history_text}\n\nRECENT TRANSCRIPT:\n{recent_text}"
             if ocr_text:
-                context += f"\n\nWHITEBOARD CONTENT (OCR):\n{ocr_text}"
+                context += f"\n\nWHITEBOARD CONTENT (AI-READ):\n{ocr_text}"
+
+            # Teacher-confirmed board insights override/supplement auto-detected content
+            if confirmed_insights:
+                insights_text = "\n".join(f"- {ins}" for ins in confirmed_insights)
+                context += f"\n\nTEACHER-CONFIRMED BOARD CONTEXT (high priority):\n{insights_text}"
+
             return context
         finally:
             db.close()
 
-    async def _execute_intent(self, intent: CommandIntent, context: str, command: str, session_id: str, command_id: str = None) -> dict:
-        if intent == CommandIntent.GENERATE_QUIZ:
+    async def _execute_intent(self, intent: CommandIntent, context: str, command: str, session_id: str, command_id: str = None, is_format_board: bool = False) -> dict:
+        if is_format_board:
+            return await ai_service.format_board_content(context)
+        elif intent == CommandIntent.GENERATE_QUIZ:
             quiz_data = await ai_service.generate_quiz(context, command)
             db = SessionLocal()
             try:

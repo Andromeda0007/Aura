@@ -2,43 +2,46 @@
 
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Copy, CheckCheck, AlertCircle, Loader2, FlaskConical, GitBranch } from 'lucide-react'
+import { Download, Copy, CheckCheck, AlertCircle, Loader2, FlaskConical, GitBranch, LayoutPanelLeft } from 'lucide-react'
 import type { DiagramData } from '@/types'
 
-/**
- * Fix common AI-generated Mermaid syntax errors before sending to the renderer.
- */
 function fixMermaidSyntax(code: string): string {
-  // Strip markdown fences
   code = code.replace(/```(?:mermaid)?\s*/gi, '').replace(/```/g, '')
-  // Fix: -->|label|> B  →  -->|label| B  (stray > after closing pipe)
+  // Fix broken edge label syntax  |text|>  →  |text|
   code = code.replace(/\|([^|\n]*)\|>/g, '|$1| ')
-  // If the whole diagram is on one line with semicolons as separators, split it
-  if (!code.includes('\n') && code.includes(';')) {
-    code = code.replace(/;\s*/g, '\n')
-  }
-  // Remove duplicate blank lines
+  // Trim whitespace inside node labels  [ text ]  →  [text]
+  code = code.replace(/\[\s+([^\]]*?)\s+\]/g, '[$1]')
+  // Semicolon-separated single-line → newlines
+  if (!code.includes('\n') && code.includes(';')) code = code.replace(/;\s*/g, '\n')
+  // Collapse triple+ blank lines
   code = code.replace(/\n{3,}/g, '\n\n')
   return code.trim()
 }
 
-interface DiagramDisplayProps {
-  data: DiagramData
+/** Remove any error divs Mermaid injects into document.body on parse failure. */
+function cleanMermaidErrors() {
+  document.querySelectorAll(
+    '[id^="mermaid-"], .mermaid-error, #d, .error-text, svg[id^="mermaid-"]'
+  ).forEach(el => {
+    if (el.closest('#__next') === null) el.remove()
+  })
 }
 
-export function DiagramDisplay({ data }: DiagramDisplayProps) {
-  // ── State ─────────────────────────────────────────────────
-  const [renderedSvg, setRenderedSvg] = useState<string | null>(null)
-  const [isRendering, setIsRendering] = useState(true)
-  const [renderError, setRenderError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [chemImgLoaded, setChemImgLoaded] = useState(false)
-  const [chemImgError, setChemImgError] = useState(false)
+interface DiagramDisplayProps {
+  data: DiagramData
+  onBoardAction?: (mode: 'add' | 'replace', dataUrl: string) => void
+}
 
-  // ── Mermaid rendering ──────────────────────────────────────
-  // Key fix: store the SVG in state so it's available when the container renders.
-  // The old approach set innerHTML on a ref that didn't exist yet (it was behind
-  // the loading-state gate), so the diagram area was always blank.
+export function DiagramDisplay({ data, onBoardAction }: DiagramDisplayProps) {
+  const [renderedSvg, setRenderedSvg]     = useState<string | null>(null)
+  const [isRendering, setIsRendering]     = useState(true)
+  const [renderError, setRenderError]     = useState<string | null>(null)
+  const [copied, setCopied]               = useState(false)
+  const [chemImgLoaded, setChemImgLoaded] = useState(false)
+  const [chemImgError, setChemImgError]   = useState(false)
+  const [placing, setPlacing]             = useState(false)
+
+  // ── Mermaid ────────────────────────────────────────────────
   useEffect(() => {
     if (data.diagramType !== 'mermaid' || !data.code) return
     setIsRendering(true)
@@ -50,40 +53,37 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
         const mermaid = (await import('mermaid')).default
         mermaid.initialize({
           startOnLoad: false,
-          theme: 'dark',
-          darkMode: true,
-          fontFamily: 'Inter, system-ui, sans-serif',
-          fontSize: 14,
+          theme: 'base',
           themeVariables: {
-            background: '#1B1B1F',
-            mainBkg: '#202127',
-            nodeBorder: '#3b3b32',
-            clusterBkg: '#202127',
-            titleColor: '#DFDFD6',
-            edgeLabelBackground: '#202127',
-            primaryColor: '#4f46e5',
-            primaryTextColor: '#DFDFD6',
-            primaryBorderColor: '#4f46e5',
-            lineColor: '#6d6d64',
-            secondaryColor: '#202127',
-            tertiaryColor: '#1B1B1F',
+            background:          '#ffffff',
+            mainBkg:             '#f0f4ff',
+            nodeBorder:          '#6366f1',
+            clusterBkg:          '#e8edff',
+            titleColor:          '#1e1b4b',
+            edgeLabelBackground: '#f0f4ff',
+            primaryColor:        '#6366f1',
+            primaryTextColor:    '#1e1b4b',
+            primaryBorderColor:  '#6366f1',
+            lineColor:           '#818cf8',
+            secondaryColor:      '#e0e7ff',
+            tertiaryColor:       '#f5f3ff',
+            fontSize:            '15px',
           },
+          flowchart: { curve: 'basis', padding: 20 },
         })
 
         const cleanCode = fixMermaidSyntax(data.code!)
-        const uniqueId = `mermaid-${Date.now()}`
-        const { svg } = await mermaid.render(uniqueId, cleanCode)
-
-        // Store SVG in state — React will paint it on next render
+        const uniqueId  = `mermaid-${Date.now()}`
+        const { svg }   = await mermaid.render(uniqueId, cleanCode)
         setRenderedSvg(svg)
         setIsRendering(false)
       } catch (err: any) {
-        console.error('Mermaid render error:', err)
+        // Mermaid sometimes injects error elements into document.body — remove them
+        cleanMermaidErrors()
         setRenderError(err?.message ?? 'Could not render diagram.')
         setIsRendering(false)
       }
     }
-
     render()
   }, [data.code, data.diagramType])
 
@@ -99,21 +99,46 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
   const handleDownloadSVG = () => {
     if (!renderedSvg) return
     const blob = new Blob([renderedSvg], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${data.title ?? 'diagram'}.svg`
-    a.click()
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = `${data.title ?? 'diagram'}.svg`; a.click()
     URL.revokeObjectURL(url)
   }
 
+  const handleAddToBoard = async () => {
+    if (!onBoardAction || placing) return
+    setPlacing(true)
+    try {
+      let dataUrl = ''
+      if (data.diagramType === 'mermaid' && renderedSvg) {
+        const svgWithBg = renderedSvg.replace(
+          '<svg ',
+          '<svg style="background:#ffffff;border-radius:8px;padding:12px;" '
+        )
+        dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgWithBg)))}`
+      } else if (data.diagramType === 'chemistry' && data.compoundName) {
+        const url  = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(data.compoundName)}/PNG?image_size=large`
+        const resp = await fetch(url)
+        const blob = await resp.blob()
+        dataUrl    = await new Promise<string>(res => {
+          const r = new FileReader(); r.onloadend = () => res(r.result as string); r.readAsDataURL(blob)
+        })
+      }
+      if (dataUrl) onBoardAction('add', dataUrl)
+    } catch (err) {
+      console.error('Board paste failed:', err)
+    } finally {
+      setPlacing(false)
+    }
+  }
+
   // ── Chemistry ──────────────────────────────────────────────
-  const pubchemUrl = data.compoundName
+  const pubchemUrl  = data.compoundName
     ? `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(data.compoundName)}/PNG?image_size=large`
     : null
   const isChemistry = data.diagramType === 'chemistry'
+  const canBoard    = onBoardAction && (isChemistry ? !!pubchemUrl && !chemImgError : !!renderedSvg)
 
-  // ── Render ─────────────────────────────────────────────────
   return (
     <div className="space-y-4">
 
@@ -136,37 +161,31 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
         </div>
       </div>
 
-      {/* Description */}
       {data.description && (
         <p className="text-xs text-dark-300 leading-relaxed">{data.description}</p>
       )}
 
-      {/* ── Chemistry: PubChem image ── */}
+      {/* ── Chemistry ── */}
       {isChemistry && (
         <div className="rounded-xl border border-dark-700 bg-dark-900/60 overflow-hidden">
           {pubchemUrl && !chemImgError ? (
             <div className="flex flex-col items-center gap-3 p-4">
-              <div className="bg-white rounded-lg p-3 w-full flex items-center justify-center min-h-[160px]">
-                {!chemImgLoaded && (
-                  <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-                )}
+              <div className="bg-white rounded-lg p-3 w-full flex items-center justify-center min-h-[200px]">
+                {!chemImgLoaded && <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />}
                 <img
                   src={pubchemUrl}
                   alt={`Chemical structure of ${data.compoundName}`}
                   onLoad={() => setChemImgLoaded(true)}
                   onError={() => setChemImgError(true)}
-                  className={`max-w-full max-h-64 object-contain transition-opacity ${chemImgLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
+                  className={`max-w-full max-h-72 object-contain transition-opacity ${chemImgLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
                 />
               </div>
-              <div className="text-center space-y-1 w-full">
-                {data.smiles && (
-                  <p className="text-xs text-dark-300">
-                    <span className="text-dark-400">SMILES: </span>
-                    <span className="font-mono text-emerald-400">{data.smiles}</span>
-                  </p>
-                )}
-                <p className="text-[10px] text-dark-500">Source: PubChem (NIH)</p>
-              </div>
+              {data.smiles && (
+                <p className="text-xs text-dark-300 w-full">
+                  <span className="text-dark-400">SMILES: </span>
+                  <span className="font-mono text-emerald-400">{data.smiles}</span>
+                </p>
+              )}
             </div>
           ) : (
             <div className="p-6 text-center space-y-2">
@@ -182,11 +201,9 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
         </div>
       )}
 
-      {/* ── Mermaid diagram ── */}
+      {/* ── Mermaid ── */}
       {!isChemistry && (
         <div className="space-y-3">
-
-          {/* Toolbar — only shown when rendered */}
           {!isRendering && !renderError && renderedSvg && (
             <div className="flex items-center gap-1.5 justify-end">
               <button
@@ -200,38 +217,26 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
                 onClick={handleDownloadSVG}
                 className="flex items-center gap-1 text-[10px] text-dark-400 hover:text-dark-200 transition-colors px-2 py-1 rounded-md hover:bg-dark-700"
               >
-                <Download className="w-3 h-3" />
-                SVG
+                <Download className="w-3 h-3" /> SVG
               </button>
             </div>
           )}
 
-          {/* Diagram area */}
-          <div className="rounded-xl border border-dark-700 bg-dark-900/60 overflow-hidden">
+          <div className="rounded-xl border border-dark-700 bg-white overflow-hidden">
             <AnimatePresence mode="wait">
               {isRendering ? (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-center gap-2 py-16"
-                >
+                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex items-center justify-center gap-2 py-16">
                   <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
-                  <span className="text-sm text-dark-400">Rendering diagram…</span>
+                  <span className="text-sm text-gray-500">Rendering diagram…</span>
                 </motion.div>
               ) : renderError ? (
-                <motion.div
-                  key="error"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="p-5 space-y-3"
-                >
-                  <div className="flex items-start gap-2 text-amber-400">
+                <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-5 space-y-3">
+                  <div className="flex items-start gap-2 text-amber-600">
                     <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                     <p className="text-xs">Render failed — showing source code instead.</p>
                   </div>
-                  <pre className="text-xs font-mono text-dark-300 bg-dark-800 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">
+                  <pre className="text-xs font-mono text-gray-600 bg-gray-100 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">
                     {data.code}
                   </pre>
                 </motion.div>
@@ -241,14 +246,13 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
-                  className="p-4 overflow-x-auto [&_svg]:w-full [&_svg]:h-auto [&_svg]:max-w-full"
+                  className="p-5 overflow-x-auto [&_svg]:w-full [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:min-h-[200px]"
                   dangerouslySetInnerHTML={{ __html: renderedSvg }}
                 />
               ) : null}
             </AnimatePresence>
           </div>
 
-          {/* Source code — collapsible */}
           {!renderError && data.code && (
             <details className="group">
               <summary className="text-[10px] text-dark-500 cursor-pointer hover:text-dark-300 transition-colors select-none list-none flex items-center gap-1">
@@ -262,6 +266,23 @@ export function DiagramDisplay({ data }: DiagramDisplayProps) {
           )}
         </div>
       )}
+
+      {/* ── Add to Board ── */}
+      {canBoard && (
+        <div className="pt-1">
+          <button
+            onClick={handleAddToBoard}
+            disabled={placing}
+            className="flex items-center gap-2 text-xs bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {placing
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <LayoutPanelLeft className="w-3.5 h-3.5" />}
+            {placing ? 'Adding…' : 'Add to Board'}
+          </button>
+        </div>
+      )}
+
     </div>
   )
 }

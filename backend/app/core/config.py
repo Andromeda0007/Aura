@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List, Any
@@ -6,6 +7,16 @@ from functools import lru_cache
 
 
 _DEFAULT_ORIGIN = "http://localhost:3000"
+
+# config.py lives at backend/app/core/config.py
+# .env can be in backend/ OR in the parent Aura/ directory
+_here = Path(__file__).resolve().parent          # backend/app/core/
+_backend_dir = _here.parent.parent               # backend/
+_root_dir = _backend_dir.parent                  # Aura/
+_ENV_FILE = str(
+    _backend_dir / ".env" if (_backend_dir / ".env").exists()
+    else _root_dir / ".env"
+)
 
 
 def _parse_origins(v: str) -> List[str]:
@@ -57,7 +68,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     class Config:
-        env_file = ".env"
+        env_file = _ENV_FILE
         case_sensitive = True
 
 

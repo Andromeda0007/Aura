@@ -18,7 +18,7 @@ class WorkerManager:
 
         # STT and Vision workers are called directly per-request via asyncio.create_task()
         # Only LLM and Compression workers need background loops for command/context processing
-        logger.info("✅ Worker manager ready (STT + Vision run per-request, no background loops)")
+        logger.info("Worker manager ready (STT + Vision run per-request, no background loops)")
 
     async def stop_all(self):
         self.running = False

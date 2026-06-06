@@ -39,7 +39,8 @@ class APIClient {
         if (error.response?.status === 401) {
           this.clearTokens()
           if (typeof window !== 'undefined') {
-            window.location.href = '/auth/login'
+            const onAuthPage = window.location.pathname.startsWith('/auth/')
+            if (!onAuthPage) window.location.href = '/auth/login'
           }
         }
         return Promise.reject(this.handleError(error))
@@ -67,10 +68,11 @@ class APIClient {
 
   private handleError(error: AxiosError): APIError {
     if (error.response) {
+      const data = error.response.data as any
       return {
-        message: (error.response.data as any)?.message || 'An error occurred',
-        code: (error.response.data as any)?.code,
-        details: error.response.data,
+        message: data?.message || data?.detail || 'An error occurred',
+        code: data?.code,
+        details: data,
       }
     }
     if (error.request) {
@@ -97,11 +99,6 @@ class APIClient {
 
   async getCurrentUser(): Promise<User> {
     const response = await this.client.get('/auth/me')
-    return response.data
-  }
-
-  async refreshToken(): Promise<AuthTokens> {
-    const response = await this.client.post('/auth/refresh')
     return response.data
   }
 
@@ -136,14 +133,6 @@ class APIClient {
     await this.client.delete(`/sessions/${sessionId}`)
   }
 
-  async exportSession(sessionId: string, format: 'pdf' | 'json' = 'pdf'): Promise<Blob> {
-    const response = await this.client.get(`/sessions/${sessionId}/export`, {
-      params: { format },
-      responseType: 'blob',
-    })
-    return response.data
-  }
-
   async getQuiz(shareCode: string): Promise<Quiz> {
     const response = await this.client.get(`/quiz/${shareCode}`)
     return response.data
@@ -156,6 +145,11 @@ class APIClient {
 
   async getSessionTranscripts(sessionId: string): Promise<{ id: string; text: string; timestamp: string }[]> {
     const response = await this.client.get(`/sessions/${sessionId}/transcripts`)
+    return response.data
+  }
+
+  async cleanBoard(sessionId: string, imageData: string): Promise<{ blocks: string[] }> {
+    const response = await this.client.post(`/sessions/${sessionId}/clean-board`, { imageData })
     return response.data
   }
 

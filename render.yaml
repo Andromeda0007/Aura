@@ -1,0 +1,38 @@
+databases:
+  - name: aura-db
+    databaseName: aura_db
+    user: aura_user
+    plan: free
+
+services:
+  - type: web
+    name: aura-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aura-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://aura-frontend-liard.vercel.app
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MAX_CONCURRENT_SESSIONS
+        value: "100"
+      - key: COMPRESSION_TOKEN_LIMIT
+        value: "10000"

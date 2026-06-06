@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Brain, BookOpen, Lightbulb, MessageCircle,
-  FileQuestion, ClipboardList, Network, History, Zap, ChevronRight,
+  FileQuestion, ClipboardList, Network, History, Zap, ChevronRight, Wand2,
 } from 'lucide-react'
 import { QuizDisplay } from './QuizDisplay'
 import { SummaryDisplay } from './SummaryDisplay'
@@ -17,36 +17,48 @@ import type { AIResponse } from '@/types'
 
 interface AIPanelProps {
   onClose: () => void
+  onTopicClick?: (topic: string) => void
+  onDiagramBoard?: (mode: 'add' | 'replace', dataUrl: string) => void
+  onPasteToCanvas?: (text: string) => void
+  onGenerateDiagram?: (topic: string) => void
 }
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
-  quiz:        { label: 'Quiz',        icon: <FileQuestion className="w-3.5 h-3.5" />,  color: 'text-violet-400', bg: 'bg-violet-500/15 border-violet-500/30' },
-  summary:     { label: 'Summary',     icon: <ClipboardList className="w-3.5 h-3.5" />, color: 'text-blue-400',   bg: 'bg-blue-500/15 border-blue-500/30'   },
-  explanation: { label: 'Explanation', icon: <BookOpen className="w-3.5 h-3.5" />,      color: 'text-green-400',  bg: 'bg-green-500/15 border-green-500/30' },
-  example:     { label: 'Problem',     icon: <Lightbulb className="w-3.5 h-3.5" />,     color: 'text-amber-400',  bg: 'bg-amber-500/15 border-amber-500/30' },
-  answer:      { label: 'Answer',      icon: <MessageCircle className="w-3.5 h-3.5" />, color: 'text-sky-400',    bg: 'bg-sky-500/15 border-sky-500/30'     },
-  diagram:     { label: 'Diagram',     icon: <Network className="w-3.5 h-3.5" />,       color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/30'},
+  quiz:         { label: 'Quiz',         icon: <FileQuestion className="w-3.5 h-3.5" />,  color: 'text-violet-400',  bg: 'bg-violet-500/15 border-violet-500/30'  },
+  summary:      { label: 'Summary',      icon: <ClipboardList className="w-3.5 h-3.5" />, color: 'text-blue-400',    bg: 'bg-blue-500/15 border-blue-500/30'      },
+  explanation:  { label: 'Explanation',  icon: <BookOpen className="w-3.5 h-3.5" />,      color: 'text-green-400',   bg: 'bg-green-500/15 border-green-500/30'    },
+  format_board: { label: 'Clean Board',  icon: <Wand2 className="w-3.5 h-3.5" />,         color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30'},
+  example:      { label: 'Problem',      icon: <Lightbulb className="w-3.5 h-3.5" />,     color: 'text-amber-400',   bg: 'bg-amber-500/15 border-amber-500/30'    },
+  answer:       { label: 'Answer',       icon: <MessageCircle className="w-3.5 h-3.5" />, color: 'text-sky-400',     bg: 'bg-sky-500/15 border-sky-500/30'        },
+  diagram:      { label: 'Diagram',      icon: <Network className="w-3.5 h-3.5" />,        color: 'text-indigo-400',  bg: 'bg-indigo-500/15 border-indigo-500/30'  },
 }
 
 function getTitle(r: AIResponse): string {
   return r.data?.title ?? r.data?.subject ?? TYPE_META[r.type]?.label ?? 'Response'
 }
 
-function renderContent(r: AIResponse) {
+function renderContent(
+  r: AIResponse,
+  onTopicClick?: (topic: string) => void,
+  onDiagramBoard?: (mode: 'add' | 'replace', dataUrl: string) => void,
+  onPasteToCanvas?: (text: string) => void,
+  onGenerateDiagram?: (topic: string) => void,
+) {
   switch (r.type) {
-    case 'quiz':        return <QuizDisplay data={r.data} />
-    case 'summary':     return <SummaryDisplay data={r.data} />
+    case 'quiz':         return <QuizDisplay data={r.data} />
+    case 'summary':      return <SummaryDisplay data={r.data} />
     case 'explanation':
+    case 'format_board':
     case 'example':
-    case 'answer':      return <ExplanationDisplay data={r.data} type={r.type} />
-    case 'diagram':     return <DiagramDisplay data={r.data} />
-    default:            return <p className="text-dark-300 text-sm">Response type not supported.</p>
+    case 'answer':       return <ExplanationDisplay data={r.data} type={r.type === 'format_board' ? 'explanation' : r.type as any} onTopicClick={onTopicClick} onPasteToCanvas={onPasteToCanvas} onGenerateDiagram={onGenerateDiagram} />
+    case 'diagram':      return <DiagramDisplay data={r.data} onBoardAction={onDiagramBoard} />
+    default:             return <p className="text-dark-300 text-sm">Response type not supported.</p>
   }
 }
 
 type Tab = 'response' | 'history'
 
-export function AIPanel({ onClose }: AIPanelProps) {
+export function AIPanel({ onClose, onTopicClick, onDiagramBoard, onPasteToCanvas, onGenerateDiagram }: AIPanelProps) {
   const { latestAIResponse, aiHistory } = useSessionStore()
   const [tab, setTab] = useState<Tab>('response')
   const [viewingResponse, setViewingResponse] = useState<AIResponse | null>(null)
@@ -171,7 +183,7 @@ export function AIPanel({ onClose }: AIPanelProps) {
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.16 }}
                     >
-                      {renderContent(active)}
+                      {renderContent(active, onTopicClick, onDiagramBoard, onPasteToCanvas, onGenerateDiagram)}
                     </motion.div>
                   ) : (
                     <motion.div

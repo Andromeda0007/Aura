@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Session, Command, AIResponse, CompressionNotification } from '@/types'
+import type { Session, Command, AIResponse, CompressionNotification, BoardInsight } from '@/types'
 
 export interface TranscriptEntry {
   id: string
@@ -16,6 +16,8 @@ interface SessionState {
   aiHistory: AIResponse[]
   compressionStatus: CompressionNotification | null
   transcriptEntries: TranscriptEntry[]
+  pendingInsight: BoardInsight | null       // latest unreviewed board insight
+  confirmedInsights: BoardInsight[]         // teacher-approved insights (sent with commands)
 
   setCurrentSession: (session: Session | null) => void
   setRecording: (recording: boolean) => void
@@ -30,6 +32,9 @@ interface SessionState {
   updateTranscriptEntry: (id: string, updates: Partial<TranscriptEntry>) => void
   clearTranscript: () => void
   clearSession: () => void
+  setPendingInsight: (insight: BoardInsight | null) => void
+  confirmInsight: (insight: BoardInsight) => void
+  undoLastInsight: () => void
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
@@ -40,6 +45,8 @@ export const useSessionStore = create<SessionState>((set) => ({
   aiHistory: [],
   compressionStatus: null,
   transcriptEntries: [],
+  pendingInsight: null,
+  confirmedInsights: [],
 
   setCurrentSession: (session) => set({ currentSession: session }),
 
@@ -67,9 +74,10 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setCompressionStatus: (status) => set({ compressionStatus: status }),
 
-  addTranscriptEntry: (entry) => set((state) => ({
-    transcriptEntries: [...state.transcriptEntries, entry],
-  })),
+  addTranscriptEntry: (entry) => set((state) => {
+    if (state.transcriptEntries.some(e => e.id === entry.id)) return state
+    return { transcriptEntries: [...state.transcriptEntries, entry] }
+  }),
 
   updateTranscriptEntry: (id, updates) => set((state) => ({
     transcriptEntries: state.transcriptEntries.map((entry) =>
@@ -87,5 +95,18 @@ export const useSessionStore = create<SessionState>((set) => ({
     aiHistory: [],
     compressionStatus: null,
     transcriptEntries: [],
+    pendingInsight: null,
+    confirmedInsights: [],
   }),
+
+  setPendingInsight: (insight) => set({ pendingInsight: insight }),
+
+  confirmInsight: (insight) => set((state) => ({
+    confirmedInsights: [...state.confirmedInsights, { ...insight, confirmed: true }],
+    pendingInsight: null,
+  })),
+
+  undoLastInsight: () => set((state) => ({
+    confirmedInsights: state.confirmedInsights.slice(0, -1),
+  })),
 }))

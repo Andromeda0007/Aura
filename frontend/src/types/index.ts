@@ -74,11 +74,12 @@ export interface Command {
   timestamp: string
 }
 
-export type CommandIntent = 
-  | 'generate_quiz' 
-  | 'summarize' 
-  | 'explain' 
-  | 'generate_example' 
+export type CommandIntent =
+  | 'generate_quiz'
+  | 'summarize'
+  | 'explain'
+  | 'generate_example'
+  | 'generate_diagram'
   | 'answer_question'
   | 'other'
 
@@ -122,10 +123,18 @@ export type WSMessageType =
   | 'compression_complete'
   | 'command_processing'
   | 'command_response'
+  | 'board_insight'
   | 'error'
   | 'session_ended'
   | 'ping'
   | 'pong'
+
+export interface BoardInsight {
+  id: string           // client-generated for undo tracking
+  description: string  // Gemini's full description of the board
+  timestamp: string
+  confirmed: boolean
+}
 
 export interface AudioChunk {
   sessionId: string
@@ -149,7 +158,7 @@ export interface VoiceCommand {
 }
 
 export interface AIResponse {
-  type: 'quiz' | 'summary' | 'explanation' | 'example' | 'answer' | 'diagram'
+  type: 'quiz' | 'summary' | 'explanation' | 'format_board' | 'example' | 'answer' | 'diagram'
   data: any
   commandId: string
   command: string

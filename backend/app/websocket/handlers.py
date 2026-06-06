@@ -15,10 +15,8 @@ async def handle_audio_chunk(sid: str, data: dict):
         logger.warning("Audio chunk missing data", sid=sid)
         return
 
-    logger.info("🎧 Audio chunk received, processing directly", 
-                session_id=session_id, chunk_id=chunk_id)
+    logger.info("Audio chunk received", session_id=session_id, chunk_id=chunk_id)
 
-    # Process directly
     from ..workers.stt_worker import STTWorker
     worker = STTWorker()
     asyncio.create_task(worker.process_audio({
@@ -41,10 +39,8 @@ async def handle_canvas_snapshot(sid: str, data: dict):
         logger.warning("Canvas snapshot missing data", sid=sid)
         return
 
-    logger.info("📸 Canvas snapshot received, processing directly",
-                session_id=session_id, page=page_number)
+    logger.info("Canvas snapshot received", session_id=session_id, page=page_number)
 
-    # Process directly
     from ..workers.vision_worker import VisionWorker
     worker = VisionWorker()
     asyncio.create_task(worker.process_image({
@@ -65,7 +61,7 @@ async def handle_transcript_text(sid: str, data: dict):
     if not session_id or not text:
         return
 
-    logger.info(f"📝 Transcript text received: \"{text[:80]}\"", session_id=session_id)
+    logger.info("Transcript text received", session_id=session_id, preview=text[:80])
 
     from ..workers.stt_worker import STTWorker
     worker = STTWorker()
@@ -80,25 +76,39 @@ async def handle_voice_command(sid: str, data: dict):
     session_id = data.get('sessionId')
     command = data.get('command', '')
     timestamp = data.get('timestamp')
+    confirmed_insights = data.get('confirmedInsights', [])
+    image_data = data.get('imageData')  # present when caller needs immediate vision analysis
 
     if not session_id or not command:
         return
 
-    logger.info("🗣️ Voice command received", session_id=session_id, command=command[:60])
+    logger.info("Voice command received", session_id=session_id, command=command[:60])
 
     if "hey aura" not in command.lower():
         return
 
-    await send_to_client(sid, 'command_processing', {
-        'message': 'Processing your command...',
-    })
+    await send_to_client(sid, 'command_processing', {'message': 'Processing your command...'})
 
-    # Process command via LLM worker directly
+    # If image data was included, run vision synchronously BEFORE the LLM so the
+    # context query finds up-to-date whiteboard content in the DB.
+    if image_data:
+        try:
+            from ..workers.vision_worker import VisionWorker
+            await VisionWorker().process_image({
+                'session_id': session_id,
+                'image_data': image_data,
+                'tldraw_state': '',
+                'page_number': '1',
+                'timestamp': timestamp,
+            })
+        except Exception as exc:
+            logger.warning("Inline vision processing failed", error=str(exc))
+
     from ..workers.llm_worker import LLMWorker
-    worker = LLMWorker()
-    asyncio.create_task(worker.process_command({
+    asyncio.create_task(LLMWorker().process_command({
         'session_id': session_id,
         'command': command,
         'timestamp': timestamp,
         'sid': sid,
+        'confirmed_insights': confirmed_insights,
     }))

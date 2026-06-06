@@ -297,3 +297,105 @@ async def validate_answer(
         user_answer=request.user_answer,
     )
     return result
+
+
+# ── Clean Board ───────────────────────────────────────────────────────────────
+
+class CleanBoardRequest(BaseModel):
+    imageData: str  # base64 PNG from the canvas
+
+
+@router.post("/{session_id}/clean-board")
+async def clean_board(
+    session_id: str,
+    request: CleanBoardRequest,
+    current_user: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Send board screenshot to Gemini Vision; return clean text blocks."""
+    import base64, requests as req
+    from ..core.config import get_settings
+
+    cfg = get_settings()
+    if not cfg.GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="Gemini API key not configured")
+
+    # Strip data-URL header if present
+    raw_b64 = request.imageData.split(",", 1)[1] if "," in request.imageData else request.imageData
+
+    try:
+        base64.b64decode(raw_b64)  # validate
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data")
+
+    prompt = (
+        "You are reading a classroom whiteboard screenshot. "
+        "Identify ONLY text written in handwriting or free-form pen/pencil strokes. "
+        "Rules: "
+        "1. Ignore text inside neat rectangular boxes or formatted blocks — those are already structured. "
+        "2. Ignore diagrams, arrows, shapes, drawings, or any non-text content — skip them entirely. "
+        "3. For each handwritten word or short phrase, clean up spelling and capitalization. "
+        "4. Return ONLY valid JSON, no markdown, no explanation:\n"
+        '{"blocks": ["CleanWord1", "Clean Phrase 2"]}\n'
+        'If no handwriting found, return {"blocks": []}.'
+    )
+
+    import asyncio, json
+
+    loop = asyncio.get_event_loop()
+
+    def _call_groq() -> str:
+        from groq import Groq
+        client = Groq(api_key=cfg.GROQ_API_KEY)
+        resp = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image_url",
+                     "image_url": {"url": f"data:image/png;base64,{raw_b64}"}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+            max_tokens=256,
+            temperature=0,
+        )
+        return resp.choices[0].message.content.strip()
+
+    def _call_gemini() -> str:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta"
+            f"/models/gemini-2.0-flash-lite:generateContent?key={cfg.GEMINI_API_KEY}"
+        )
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": "image/png", "data": raw_b64}},
+                ]
+            }],
+            "generationConfig": {"maxOutputTokens": 256},
+        }
+        r = req.post(url, json=payload, timeout=30)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _parse(text: str) -> list:
+        if "```" in text:
+            text = text.split("```")[1].split("```")[0]
+            if text.lstrip().startswith("json"):
+                text = text.lstrip()[4:]
+        return [b.strip() for b in json.loads(text.strip()).get("blocks", [])
+                if isinstance(b, str) and b.strip()]
+
+    # Try Groq Vision first (better rate limits), fall back to Gemini
+    last_err = None
+    for fn in ([_call_groq] if cfg.GROQ_API_KEY else []) + ([_call_gemini] if cfg.GEMINI_API_KEY else []):
+        try:
+            text = await loop.run_in_executor(None, fn)
+            return {"blocks": _parse(text)}
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise HTTPException(status_code=502, detail=f"Vision API failed: {last_err}")
