@@ -5,29 +5,6 @@ from .connection import send_to_client, broadcast_to_session
 logger = structlog.get_logger()
 
 
-async def handle_audio_chunk(sid: str, data: dict):
-    session_id = data.get('sessionId')
-    audio_data = data.get('data')
-    chunk_id = data.get('chunkId')
-    timestamp = data.get('timestamp')
-
-    if not session_id or not audio_data:
-        logger.warning("Audio chunk missing data", sid=sid)
-        return
-
-    logger.info("Audio chunk received", session_id=session_id, chunk_id=chunk_id)
-
-    from ..workers.stt_worker import STTWorker
-    worker = STTWorker()
-    asyncio.create_task(worker.process_audio({
-        'session_id': session_id,
-        'data': audio_data,
-        'chunk_id': str(chunk_id),
-        'timestamp': timestamp,
-        'sid': sid,
-    }))
-
-
 async def handle_canvas_snapshot(sid: str, data: dict):
     session_id = data.get('sessionId')
     image_data = data.get('imageData')

@@ -81,9 +81,7 @@ async def message(sid: str, data: dict):
     
     from . import handlers
     
-    if message_type == 'audio_chunk':
-        await handlers.handle_audio_chunk(sid, message_data)
-    elif message_type == 'canvas_snapshot':
+    if message_type == 'canvas_snapshot':
         await handlers.handle_canvas_snapshot(sid, message_data)
     elif message_type == 'voice_command':
         await handlers.handle_voice_command(sid, message_data)
