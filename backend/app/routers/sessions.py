@@ -11,10 +11,23 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.database import get_db
 from app.core.deps import get_current_teacher
 from app.core.logging import get_logger
-from app.models.enums import SessionStatus
+from app.models.command import Command
+from app.models.enums import CommandStatus, SessionStatus
 from app.models.session import Session
+from app.models.transcript import Transcript
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut
+
+_INTENT_RESPONSE_TYPE = {
+    "generate_quiz": "quiz",
+    "summarize": "summary",
+    "explain": "explanation",
+    "generate_example": "example",
+    "generate_diagram": "diagram",
+    "answer_question": "answer",
+    "format_board": "format_board",
+    "other": "answer",
+}
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = get_logger("aura.sessions")
@@ -61,6 +74,40 @@ def get_session(
     teacher: User = Depends(get_current_teacher),
 ) -> SessionOut:
     return SessionOut.model_validate(_owned_session(session_id, db, teacher))
+
+
+@router.get("/{session_id}/history")
+def session_history(
+    session_id: uuid.UUID,
+    db: DBSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+) -> dict:
+    """Transcripts + completed AI responses, for restoring an open session."""
+    sess = _owned_session(session_id, db, teacher)
+    transcripts = db.scalars(
+        select(Transcript).where(Transcript.session_id == sess.id).order_by(Transcript.timestamp)
+    ).all()
+    commands = db.scalars(
+        select(Command)
+        .where(Command.session_id == sess.id, Command.status == CommandStatus.COMPLETED)
+        .order_by(Command.timestamp)
+    ).all()
+    return {
+        "transcripts": [
+            {"id": str(t.id), "text": t.text, "timestamp": t.timestamp.isoformat() if t.timestamp else None}
+            for t in transcripts
+        ],
+        "commands": [
+            {
+                "commandId": str(c.id),
+                "type": _INTENT_RESPONSE_TYPE.get(c.intent.value, "answer"),
+                "command": c.raw_command,
+                "data": c.llm_response,
+                "timestamp": c.timestamp.isoformat() if c.timestamp else None,
+            }
+            for c in commands
+        ],
+    }
 
 
 @router.post("/{session_id}/end", response_model=SessionOut)

@@ -63,4 +63,14 @@ export const sessionApi = {
   list: () => api.get<Session[]>("/sessions").then((r) => r.data),
   get: (id: string) => api.get<Session>(`/sessions/${id}`).then((r) => r.data),
   end: (id: string) => api.post<Session>(`/sessions/${id}/end`).then((r) => r.data),
+  history: (id: string) =>
+    api
+      .get<{
+        transcripts: { id: string; text: string; timestamp: string }[];
+        commands: { commandId: string; type: string; command: string; data: unknown }[];
+      }>(`/sessions/${id}/history`)
+      .then((r) => r.data),
+  exportMarkdown: (id: string) =>
+    api.get(`/export/${id}`, { responseType: "blob" }).then((r) => r.data as Blob),
 };
+

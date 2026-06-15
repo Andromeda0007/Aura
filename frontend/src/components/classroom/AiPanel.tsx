@@ -1,7 +1,8 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Sparkles, Volume2 } from "lucide-react";
 
+import { speak, speakableText } from "@/lib/tts";
 import { DiagramDisplay } from "@/components/ai-panel/DiagramDisplay";
 import { QuizDisplay } from "@/components/ai-panel/QuizDisplay";
 import {
@@ -47,7 +48,7 @@ export function AiPanel() {
         {!latest ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <Sparkles className="h-7 w-7 text-accent" />
-            <p className="max-w-[14rem] text-sm">
+            <p className="max-w-56 text-sm">
               Say <span className="font-medium text-foreground">“Hey Aura”</span> or type a command to
               generate a quiz, summary, explanation, and more.
             </p>
@@ -56,9 +57,20 @@ export function AiPanel() {
           <div className="space-y-3">
             {history.map((r, i) => (
               <div key={r.commandId ?? i} className="rounded-xl border border-border bg-muted/40 p-3">
-                <span className="inline-block rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
-                  {r.type}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="inline-block rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
+                    {r.type}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => speak(speakableText(r))}
+                    aria-label="Read aloud"
+                    title="Read aloud"
+                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
                 <div className="mt-2">{renderResponse(r)}</div>
               </div>
             ))}

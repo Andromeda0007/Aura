@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Radio, Send } from "lucide-react";
+import { ArrowLeft, Download, Radio, Send } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -42,6 +42,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const addTranscript = useSessionStore((s) => s.addTranscript);
   const addResponse = useSessionStore((s) => s.addResponse);
   const setCompression = useSessionStore((s) => s.setCompression);
+  const setTranscripts = useSessionStore((s) => s.setTranscripts);
   const clear = useSessionStore((s) => s.clear);
 
   // Load session + connect socket once.
@@ -56,6 +57,22 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         toast.error("Session not found");
         router.replace("/dashboard");
       });
+
+    // Restore prior transcripts + AI responses.
+    sessionApi
+      .history(sessionId)
+      .then((h) => {
+        setTranscripts(h.transcripts.map((t) => ({ id: t.id, text: t.text, timestamp: t.timestamp })));
+        h.commands.forEach((cmd) =>
+          addResponse({
+            type: cmd.type as AIResponse["type"],
+            data: cmd.data,
+            commandId: cmd.commandId,
+            command: cmd.command,
+          }),
+        );
+      })
+      .catch(() => {});
 
     const token = useAuthStore.getState().tokens?.access_token;
     if (!token) return;
@@ -88,6 +105,20 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, sessionId]);
+
+  async function exportSession() {
+    try {
+      const blob = await sessionApi.exportMarkdown(sessionId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentSession?.subject ?? "session"}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Export failed");
+    }
+  }
 
   async function endSession() {
     try {
@@ -141,6 +172,9 @@ export function Workspace({ sessionId }: { sessionId: string }) {
             onClick={() => setRecording(!isRecording)}
           >
             <Radio className="h-4 w-4" /> {isRecording ? "Recording" : "Record"}
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Export session" onClick={exportSession}>
+            <Download className="h-4 w-4" />
           </Button>
           <ThemeToggle />
           <Button variant="outline" size="sm" onClick={endSession}>End</Button>

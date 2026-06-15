@@ -72,10 +72,12 @@ def create_app() -> FastAPI:
         return {"app": settings.app_name, "version": settings.version, "docs": "/docs"}
 
     # Routers
-    from app.routers import auth, sessions
+    from app.routers import auth, export, quizzes, sessions
 
     app.include_router(auth.router)
     app.include_router(sessions.router)
+    app.include_router(quizzes.router)
+    app.include_router(export.router)
 
     return app
 
