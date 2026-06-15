@@ -6,6 +6,7 @@ import asyncio
 
 from app.core.logging import get_logger
 from app.websocket.connection import active_connections, sio
+from app.workers.llm_worker import process_command
 from app.workers.stt_worker import save_transcript_text, transcribe_audio
 from app.workers.vision_worker import process_snapshot
 
@@ -35,6 +36,18 @@ async def handle_audio_chunk(sid: str, data: dict) -> None:
     audio = (data or {}).get("data") or (data or {}).get("audio")
     if audio:
         asyncio.create_task(transcribe_audio(session_id, audio))
+
+
+@sio.on("voice_command")
+async def handle_voice_command(sid: str, data: dict) -> None:
+    session_id = _session_for(sid)
+    if not session_id:
+        return
+    command = (data or {}).get("command", "")
+    if not command.strip():
+        return
+    await sio.emit("command_processing", {"message": "Processing…"}, to=sid)
+    asyncio.create_task(process_command(session_id, command))
 
 
 @sio.on("canvas_snapshot")

@@ -2,7 +2,18 @@
 
 import { Sparkles } from "lucide-react";
 
+import { QuizDisplay } from "@/components/ai-panel/QuizDisplay";
 import { useSessionStore } from "@/store/sessionStore";
+import type { AIResponse } from "@/types";
+
+function renderResponse(r: AIResponse) {
+  if (r.type === "quiz") return <QuizDisplay data={r.data as never} />;
+  return (
+    <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground">
+      {typeof r.data === "string" ? r.data : JSON.stringify(r.data, null, 2)}
+    </pre>
+  );
+}
 
 export function AiPanel() {
   const latest = useSessionStore((s) => s.latestResponse);
@@ -29,9 +40,7 @@ export function AiPanel() {
                 <span className="inline-block rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
                   {r.type}
                 </span>
-                <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm text-foreground">
-                  {typeof r.data === "string" ? r.data : JSON.stringify(r.data, null, 2)}
-                </pre>
+                <div className="mt-2">{renderResponse(r)}</div>
               </div>
             ))}
           </div>
