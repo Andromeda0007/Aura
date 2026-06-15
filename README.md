@@ -1,241 +1,101 @@
-# Aura — AI-Powered Teaching Assistant
+# Aura — Real-Time Multi-Modal AI Teaching Assistant
 
-A full-stack AI classroom assistant that transcribes speech in real-time, captures whiteboard drawings via OCR, and responds to natural-language commands with quizzes, summaries, explanations, diagrams, and interactive problem sets — all during a live lecture.
+Aura runs on the classroom smartboard: it **listens** to the teacher (speech→text),
+**watches** the whiteboard (snapshot→OCR), fuses both into one live context, and on
+**"Hey Aura, …"** instantly generates quizzes, summaries, explanations, examples,
+diagrams, answers, or a cleaned board — grounded in what was just taught.
+
+> Built fresh on the `sexy-aura` branch. Spec of record: [`AURA_BUILD.md`](./AURA_BUILD.md).
 
 ---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind v4 · next-themes (light/dark) · tldraw v5 (pen/touch) · Zustand · Socket.IO client · recharts · Framer Motion |
+| Backend | FastAPI · python-socketio · SQLAlchemy 2 · Alembic · Pydantic v2 · Argon2 · JWT (access + refresh) · structlog |
+| AI (free) | **Groq** primary (`llama-3.1-8b-instant` classify, `llama-3.3-70b-versatile` generate) → **Gemini** fallback. Vision OCR: Groq/Gemini → EasyOCR. STT: browser Web Speech (default) → Whisper (lazy, optional). |
+| Data | PostgreSQL (no Redis). Whiteboard images stored in Postgres (demo scale). |
 
 ## Features
 
-| Capability | Details |
-|---|---|
-| **Live Transcription** | Chrome Web Speech API → instant transcript panel (toggleable) |
-| **Whiteboard OCR** | tldraw canvas auto-snapshot → EasyOCR → text fed into AI context |
-| **Voice Commands** | Say *"Hey Aura…"* or type a command in the footer input |
-| **Quiz Generation** | AI generates multiple-choice quizzes with instant correct/wrong feedback |
-| **Summaries** | Structured summary of the lecture so far |
-| **Explanations & Answers** | Concept explanations drawn from live context |
-| **Interactive Problems** | AI generates a numerical/problem, student submits answer, Groq validates it and shows step-by-step solution |
-| **Diagram Generation** | Mermaid diagrams (flowcharts, sequences, ER, mindmaps, state, timelines) + PubChem molecular structures for chemistry |
-| **Response History** | Separate History tab in the AI panel — all past responses preserved per session, click any to revisit |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS, tldraw v2, Framer Motion, Zustand |
-| Backend | FastAPI, SQLAlchemy 2, PostgreSQL, Socket.IO, Pydantic v2 |
-| AI Provider | Groq (llama-3.1-8b-instant / llama-3.3-70b-versatile) with Gemini fallback |
-| Diagrams | Mermaid.js (client-side) + PubChem REST API (molecular structures) |
-| OCR | EasyOCR (whiteboard image → text) |
-| Auth | JWT + Argon2 password hashing |
-| Infra | Docker, Docker Compose |
+Auth + sessions · live transcription with **"Hey Aura"** wake phrase · tldraw board with **pen/touch** + 10s auto-snapshot → OCR · **all 8 intents** (quiz, summarize, explain, example, diagram, answer, format_board, other) with themed result cards · **context compression** with a live token chip · **public student quiz page** (`/q/<code>` + QR) · TTS read-aloud · **Markdown + PDF export** · session history restore · **stats dashboard** (KPIs, activity, intent mix, latency) · full **light/dark** theming.
 
 ---
 
 ## Architecture
 
 ```
-Browser
-  ├── Web Speech API ─────────────────────────────────────┐
-  │     └── Live transcript panel                         │
-  │     └── "Hey Aura" detection → voice command          │
-  │                                                        ▼
-  ├── tldraw Whiteboard                          FastAPI + Socket.IO
-  │     └── PNG snapshot every 30s → WebSocket         │
-  │                                                     ├── stt_worker     → saves transcripts to DB
-  └── Footer text input → voice_command event          ├── vision_worker  → EasyOCR → whiteboard_logs
-                                                        └── llm_worker     → Groq → AI response → panel
+Browser (Next.js)                         FastAPI + Socket.IO (ASGI)
+  Web Speech ─ transcript_text ─┐           ├─ STT worker      → transcripts
+  "Hey Aura" ─ voice_command  ──┤  WSS      ├─ Vision worker   → OCR → whiteboard_logs
+  tldraw 10s ─ canvas_snapshot ─┤ ───────►  ├─ LLM worker      → classify → fuse → Groq/Gemini → command_response
+  REST (axios, JWT+refresh)  ───┘           └─ Compression worker (auto on token overflow)
+                                            Services: Auth · Session · AIService · ContextManager
+                                            Postgres (6 tables)   Free LLM APIs: Groq → Gemini
 ```
 
-### Command Flow
-
-```
-User command (voice or typed)
-  → classify_intent  (llama-3.1-8b-instant, fast)
-  → build context    (last 30 transcripts + last 5 OCR snapshots)
-  → execute intent   (llama-3.3-70b-versatile, smart)
-       ├── generate_quiz       → QuizDisplay (interactive MCQ)
-       ├── summarize           → SummaryDisplay
-       ├── explain             → ExplanationDisplay
-       ├── generate_example    → ExplanationDisplay with answer input + AI validation
-       ├── generate_diagram    → DiagramDisplay (Mermaid or PubChem)
-       └── answer_question     → ExplanationDisplay
-  → WebSocket → AI Panel (Response tab, added to History)
-```
+Command flow: `voice_command/typed → classify_intent (fast) → get_context (last ~30 transcripts + ~5 OCR + compressed history) → execute (smart) → persist Command (+Quiz w/ share code) → command_response`.
 
 ---
 
-## Project Structure
+## Database (6 tables)
 
-```
-Aura-New/
-├── frontend/src/
-│   ├── app/                        # Pages: landing, auth, dashboard, classroom
-│   ├── components/
-│   │   ├── audio/AudioCapture.tsx       # Web Speech API + "Hey Aura" detection
-│   │   ├── whiteboard/WhiteboardCanvas.tsx  # tldraw + 30s auto-snapshot
-│   │   ├── transcript/LiveTranscript.tsx    # Toggleable transcript panel
-│   │   └── ai-panel/
-│   │       ├── AIPanel.tsx              # Response / History tabs
-│   │       ├── QuizDisplay.tsx          # Interactive MCQ with instant feedback
-│   │       ├── SummaryDisplay.tsx
-│   │       ├── ExplanationDisplay.tsx   # Explanation + interactive problem validation
-│   │       └── DiagramDisplay.tsx       # Mermaid renderer + PubChem chemistry
-│   ├── lib/
-│   │   ├── api.ts                   # Axios client (auth, sessions, validate-answer)
-│   │   ├── constants.ts             # API/WS URLs, app name, storage keys (from env)
-│   │   └── websocket.ts             # Socket.IO client
-│   └── store/sessionStore.ts        # Zustand (session, transcript, AI history)
-│
-├── backend/app/
-│   ├── main.py                      # FastAPI + Socket.IO + startup DB migrations
-│   ├── models/                      # SQLAlchemy models (users, sessions, commands, quizzes…)
-│   ├── api/                         # REST: auth, sessions, quiz, validate-answer
-│   ├── websocket/                   # Socket.IO server + event handlers
-│   ├── workers/
-│   │   ├── llm_worker.py            # Intent classification + Groq execution
-│   │   ├── stt_worker.py            # Transcript persistence
-│   │   ├── vision_worker.py         # EasyOCR pipeline
-│   │   └── compression_worker.py    # Context window compression
-│   └── services/
-│       └── ai_service.py            # Groq/Gemini wrapper (classify, quiz, summary,
-│                                    #   explain, example, diagram, validate_answer)
-│
-├── docker-compose.yml               # Local dev: postgres + backend + frontend
-├── Dockerfile.backend               # Production backend image (Render; build from repo root)
-└── .env                             # Local env (gitignored); see Quick Start
-```
+`users` · `sessions` (+ `compressed_history` JSONB) · `transcripts` · `whiteboard_logs` (image as base64) · `commands` · `quizzes` (share_code).
+*(`fusion_events` from the spec is deferred — no current feature needs it.)*
 
 ---
 
-## Database Schema
+## Run locally
 
-| Table | Purpose |
-|---|---|
-| `users` | Auth, profiles |
-| `sessions` | Lecture sessions, compressed context history |
-| `transcripts` | Per-sentence speech log |
-| `whiteboard_logs` | Canvas snapshots + OCR text |
-| `commands` | Every AI command with intent, response, and timing |
-| `quizzes` | Generated quizzes (shareable via code) |
-| `quiz_attempts` | Student quiz submissions |
-| `fusion_events` | Speech ↔ visual correlation events |
+**Prereqs:** Docker, Python 3.13, Node 20+, a free Groq key ([console.groq.com](https://console.groq.com)). Chrome/Edge for voice.
 
----
-
-## Quick Start (local with Docker)
-
-**Prerequisites:** Docker Desktop, Chrome browser, Groq API key (free at [console.groq.com](https://console.groq.com))
-
-**1. Clone and configure `.env` in the project root:**
-```env
-DATABASE_URL=postgresql://aura_user:aura_dev_password@localhost:5432/aura_db
-JWT_SECRET=your-random-secret-key
-GROQ_API_KEY=your-groq-key
-GEMINI_API_KEY=
-ALLOWED_ORIGINS=http://localhost:3000
-ENVIRONMENT=development
-```
-
-**2. Start:**
 ```bash
-docker-compose up -d
+# 1. Postgres
+docker compose up -d            # (or: docker run -d --name aura-db -e POSTGRES_USER=aura \
+                                #   -e POSTGRES_PASSWORD=aura -e POSTGRES_DB=aura_db -p 5432:5432 postgres:16-alpine)
+
+# 2. Backend
+cd backend
+python3.13 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env            # then paste GROQ_API_KEY into .env
+.venv/bin/alembic upgrade head
+.venv/bin/uvicorn app.main:app --reload --port 8000
+
+# 3. Frontend (new terminal)
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev                     # http://localhost:3000
 ```
 
-**3. Open:** http://localhost:3000 — frontend talks to backend at http://localhost:8000 (set in compose). All persistent data (transcripts, whiteboard OCR, sessions) is stored in the database; no file storage required.
+Then: sign up → **Start** a session → allow mic → teach + draw → say **"Hey Aura, make a quiz"**.
 
----
+## Tests
 
-## Deployed (Render + Vercel)
-
-| Service   | URL |
-|----------|-----|
-| Frontend | https://aura-frontend-liard.vercel.app |
-| Backend  | https://aura-backend-9r7p.onrender.com |
-
-**Backend (Render)** — set in Environment:
-- `DATABASE_URL` — from Render Postgres (Internal or External URL)
-- `JWT_SECRET` — strong random secret
-- `GROQ_API_KEY`, `GEMINI_API_KEY` — AI keys
-- `ALLOWED_ORIGINS=https://aura-frontend-liard.vercel.app`
-- `ENVIRONMENT=production`
-
-Use **Dockerfile path:** `Dockerfile.backend`, **Root Directory:** (empty). Build context is repo root.
-
-**Frontend (Vercel)** — set in Project → Settings → Environment Variables:
-- `NEXT_PUBLIC_API_URL=https://aura-backend-9r7p.onrender.com`
-- `NEXT_PUBLIC_WS_URL=wss://aura-backend-9r7p.onrender.com`
-- `NEXT_PUBLIC_APP_NAME=Aura` (optional; default "Aura")
-
-Root Directory: `frontend`.
-
----
-
-## Usage
-
-1. Sign up and create a session from the Dashboard
-2. Click **Start** — microphone permission required (Chrome/Edge only)
-3. Speak and draw on the whiteboard freely
-4. Use the footer input or say **"Hey Aura…"** followed by a command:
-
-| Example command | What Aura does |
-|---|---|
-| *"generate a quiz on Newton's laws"* | Interactive MCQ with explanations |
-| *"summarize the lecture so far"* | Structured summary |
-| *"explain Bernoulli's principle"* | Detailed explanation |
-| *"give me a numerical on projectile motion"* | Problem + answer input + AI validation |
-| *"draw the diagram of benzene"* | PubChem molecular structure image |
-| *"flowchart of the water cycle"* | Mermaid flowchart diagram |
-
-5. Use the **Response** / **History** tabs in the AI panel to navigate responses
-6. Toggle **Transcript** in the footer to view the live speech log
-
----
-
-## API Endpoints
-
-```
-POST   /api/auth/signup
-POST   /api/auth/login
-GET    /api/auth/me
-
-POST   /api/sessions
-GET    /api/sessions
-GET    /api/sessions/{id}
-GET    /api/sessions/{id}/transcripts
-POST   /api/sessions/{id}/end
-POST   /api/sessions/{id}/validate-answer
-DELETE /api/sessions/{id}
-
-GET    /api/quiz/{code}
-POST   /api/quiz/{code}/submit
-```
-
----
-
-## AI Rate Limits (Groq Free Tier)
-
-| Model | Used for | RPM | Daily |
-|---|---|---|---|
-| `llama-3.1-8b-instant` | Intent classification, answer validation | 30 | 14,400 |
-| `llama-3.3-70b-versatile` | Quiz, summary, explanation, diagram generation | 30 | 1,000 |
-
-Hitting limits returns a `429` — no charges ever on the free tier.
-
----
-
-## Troubleshooting
-
-**No transcript:** Use Chrome or Edge. Check microphone permissions.
-
-**WebSocket disconnects:** JWT may have expired — log out and back in.
-
-**Diagram blank:** Ensure the frontend container restarted after the latest build (`docker-compose up -d`).
-
-**Check logs:**
 ```bash
-docker logs aura-new-backend-1 --tail 50
-docker logs aura-new-frontend-1 --tail 20
+cd backend && .venv/bin/python -m pytest -q     # 18 tests (auth, parsing, context, API)
+cd frontend && npm test                          # 7 tests (store, tts)
 ```
+
+## API
+
+```
+GET  /health · /health/db
+POST /auth/signup · /auth/login · /auth/refresh   GET /auth/me
+POST /sessions   GET /sessions   GET /sessions/{id}   GET /sessions/{id}/history   POST /sessions/{id}/end
+GET  /quizzes/{share_code}        # PUBLIC (no auth)
+GET  /export/{session_id}         # Markdown
+GET  /stats/overview · /stats/activity
+WS   in:  transcript_text · audio_chunk · canvas_snapshot · voice_command · ping
+WS   out: transcript_update · command_response · board_insight · compression_started/complete · context_update · error
+```
+
+## Deploy (Render — free)
+
+`render.yaml` defines `aura-db` (Postgres), `aura-backend` (FastAPI), `aura-frontend` (Next.js). After the first deploy, set in the dashboard: `GROQ_API_KEY` (+ optional `GEMINI_API_KEY`) on the backend, `ALLOWED_ORIGINS` = frontend URL, and `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` = backend URL on the frontend. `JWT_SECRET` is auto-generated; `DATABASE_URL` is wired from `aura-db`.
+
+## Security
+
+Argon2 hashing · JWT (alg-allowlisted, access/refresh type-checked) · object-level session ownership on every route · WebSocket derives session from the authenticated socket (never the client payload) · ORM-only queries · Mermaid rendered `securityLevel: strict` · CORS allow-list · signup can't self-assign elevated roles · secrets via env only.
