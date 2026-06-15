@@ -30,6 +30,10 @@ httpx==0.28.1
 tenacity==9.0.0
 slowapi==0.1.9
 
+# ---- Testing ----
+pytest==8.3.4
+pytest-asyncio==0.25.0
+
 # NOTE: Heavy AI/ML deps (groq, google-generativeai, easyocr, faster-whisper,
 # Pillow, opencv, numpy) are added in later phases (P3/P4/P5) to keep the
 # initial scaffold fast to install and boot.

@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Download, Radio, Send } from "lucide-react";
+import { ArrowLeft, Download, FileText, Radio, Send } from "lucide-react";
+import { jsPDF } from "jspdf";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -120,6 +121,20 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     }
   }
 
+  async function exportPdf() {
+    try {
+      const blob = await sessionApi.exportMarkdown(sessionId);
+      const text = await blob.text();
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(text, 500);
+      doc.text(lines, 40, 50);
+      doc.save(`${currentSession?.subject ?? "session"}.pdf`);
+    } catch {
+      toast.error("PDF export failed");
+    }
+  }
+
   async function endSession() {
     try {
       await sessionApi.end(sessionId);
@@ -173,8 +188,11 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           >
             <Radio className="h-4 w-4" /> {isRecording ? "Recording" : "Record"}
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Export session" onClick={exportSession}>
+          <Button variant="ghost" size="icon" aria-label="Export Markdown" title="Export Markdown" onClick={exportSession}>
             <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Export PDF" title="Export PDF" onClick={exportPdf}>
+            <FileText className="h-4 w-4" />
           </Button>
           <ThemeToggle />
           <Button variant="outline" size="sm" onClick={endSession}>End</Button>
