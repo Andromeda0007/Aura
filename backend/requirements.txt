@@ -1,42 +1,34 @@
-# Web Framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-socketio==5.11.0
-python-multipart==0.0.6
+# ---- Core web framework ----
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
 
-# Database
-sqlalchemy==2.0.25
-alembic==1.13.1
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
+# ---- Realtime ----
+python-socketio==5.12.1
 
-# Authentication & Security
+# ---- Database / ORM / migrations ----
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+alembic==1.14.0
+
+# ---- Validation / settings ----
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# ---- Auth / security ----
 python-jose[cryptography]==3.3.0
-passlib==1.7.4
-bcrypt==4.1.2
 argon2-cffi==23.1.0
-python-dotenv==1.0.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-email-validator==2.1.0
 
-# AI Services
-# torch and torchvision installed separately via buildCommand (CPU-only wheels)
-google-generativeai==0.3.2
-groq==0.13.0
-easyocr==1.7.1
+# ---- Logging ----
+structlog==24.4.0
 
-# Image Processing
-numpy<2.0.0
-Pillow==10.2.0
-opencv-python-headless==4.9.0.80
+# ---- HTTP client (LLM/Vision REST calls) ----
+httpx==0.28.1
 
-# Utilities
-python-dateutil==2.8.2
-pytz==2024.1
-httpx==0.26.0
-tenacity==8.2.3
+# ---- Resilience / rate limiting ----
+tenacity==9.0.0
+slowapi==0.1.9
 
-# Logging
-structlog==24.1.0
-python-json-logger==2.0.7
+# NOTE: Heavy AI/ML deps (groq, google-generativeai, easyocr, faster-whisper,
+# Pillow, opencv, numpy) are added in later phases (P3/P4/P5) to keep the
+# initial scaffold fast to install and boot.

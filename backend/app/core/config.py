@@ -1,77 +1,79 @@
-import json
-from pathlib import Path
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from typing import List, Any
+"""Application configuration, loaded from environment / .env via Pydantic settings."""
+from __future__ import annotations
+
 from functools import lru_cache
 
-
-_DEFAULT_ORIGIN = "http://localhost:3000"
-
-# config.py lives at backend/app/core/config.py
-# .env can be in backend/ OR in the parent Aura/ directory
-_here = Path(__file__).resolve().parent          # backend/app/core/
-_backend_dir = _here.parent.parent               # backend/
-_root_dir = _backend_dir.parent                  # Aura/
-_ENV_FILE = str(
-    _backend_dir / ".env" if (_backend_dir / ".env").exists()
-    else _root_dir / ".env"
-)
-
-
-def _parse_origins(v: str) -> List[str]:
-    v = (v or "").strip()
-    if not v:
-        return [_DEFAULT_ORIGIN]
-    if v.startswith("["):
-        try:
-            return [str(x).strip() for x in json.loads(v) if str(x).strip()]
-        except Exception:
-            pass
-    return [o.strip() for o in v.split(",") if o.strip()]
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Aura API"
-    VERSION: str = "1.0.0"
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
-    
-    DATABASE_URL: str
-    
-    JWT_SECRET: str
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-    
-    GROQ_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
-    
-    # Plain str so env is never JSON-parsed; use .allowed_origins_list for CORS
-    ALLOWED_ORIGINS: str = _DEFAULT_ORIGIN
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
+    # App
+    app_name: str = "Aura API"
+    version: str = "0.1.0"
+    environment: str = "development"
+    debug: bool = True
+    log_level: str = "INFO"
+
+    # Database
+    database_url: str = "postgresql+psycopg://aura:aura@localhost:5432/aura_db"
+
+    # Auth
+    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
+
+    # AI providers (free tiers)
+    groq_api_key: str = ""
+    gemini_api_key: str = ""
+
+    # CORS
+    allowed_origins: str = "http://localhost:3000"
+
+    # Context compression
+    compression_token_limit: int = 10000
+
+    @field_validator("allowed_origins")
     @classmethod
-    def normalize_allowed_origins(cls, v: Any) -> str:
-        if isinstance(v, list):
-            return ",".join(str(x).strip() for x in v if str(x).strip()) or _DEFAULT_ORIGIN
-        if isinstance(v, str):
-            return v.strip() or _DEFAULT_ORIGIN
-        return _DEFAULT_ORIGIN
+    def _strip_origins(cls, v: str) -> str:
+        return v.strip()
 
     @property
-    def allowed_origins_list(self) -> List[str]:
-        return _parse_origins(self.ALLOWED_ORIGINS)
+    def allowed_origins_list(self) -> list[str]:
+        """ALLOWED_ORIGINS as a clean list (comma-separated string in env)."""
+        raw = self.allowed_origins.strip()
+        if not raw:
+            return []
+        if raw.startswith("["):
+            # tolerate a JSON-array style value
+            import json
 
-    MAX_CONCURRENT_SESSIONS: int = 100
-    COMPRESSION_TOKEN_LIMIT: int = 10000
-    
-    LOG_LEVEL: str = "INFO"
-    
-    class Config:
-        env_file = _ENV_FILE
-        case_sensitive = True
+            try:
+                return [str(o).strip() for o in json.loads(raw)]
+            except Exception:
+                pass
+        return [o.strip() for o in raw.split(",") if o.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() == "production"
+
+    @property
+    def ai_enabled(self) -> bool:
+        return bool(self.groq_api_key or self.gemini_api_key)
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+settings = get_settings()

@@ -1,25 +1,37 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from typing import Generator
-from .config import get_settings
+"""SQLAlchemy 2.0 engine, session factory, and declarative Base.
 
-settings = get_settings()
+Sync engine with the psycopg (v3) driver. FastAPI sync dependencies run in a
+threadpool, so blocking DB calls don't stall the event loop. Workers that need
+the DB open their own short-lived session via `session_scope()`.
+"""
+from __future__ import annotations
+
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+from app.core.config import settings
 
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
+    settings.database_url,
     pool_size=10,
     max_overflow=20,
-    echo=settings.DEBUG,
+    pool_pre_ping=True,
+    echo=False,
+    future=True,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Declarative base for all ORM models."""
 
 
 def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency: yields a DB session, always closed in `finally`."""
     db = SessionLocal()
     try:
         yield db
@@ -27,5 +39,15 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+@contextmanager
+def session_scope() -> Iterator[Session]:
+    """Transactional session for workers/background tasks."""
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

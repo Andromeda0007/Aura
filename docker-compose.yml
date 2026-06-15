@@ -1,0 +1,23 @@
+# Local development infrastructure for Aura.
+# Only Postgres — no Redis (per spec). Run: `docker compose up -d`.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: aura-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aura
+      POSTGRES_PASSWORD: aura
+      POSTGRES_DB: aura_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - aura_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aura -d aura_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  aura_pgdata:

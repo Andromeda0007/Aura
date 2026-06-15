@@ -1,79 +1,77 @@
+"""Aura backend — FastAPI application entry point.
+
+P0 scaffold: app factory, CORS, GZip, structured logging, health checks.
+Routers, Socket.IO, and workers are mounted in later phases.
+"""
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from contextlib import asynccontextmanager
-import structlog
-import socketio
+from sqlalchemy import text
 
-from .core.config import get_settings
-from .core.database import init_db
-from .api import auth, sessions, quiz
-from .websocket.connection import sio
-from .workers.manager import worker_manager
+from app.core.config import settings
+from app.core.database import engine
+from app.core.logging import configure_logging, get_logger
 
-settings = get_settings()
-logger = structlog.get_logger()
-
-
-def _migrate_enum_values():
-    """Idempotently add new enum values that don't exist yet in PostgreSQL.
-    NOTE: SQLAlchemy maps Python enum .name (UPPERCASE) → PostgreSQL enum label.
-    Always use UPPERCASE labels here to match that convention."""
-    from sqlalchemy import text
-    from .core.database import engine
-    new_values = ["GENERATE_DIAGRAM"]
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        for val in new_values:
-            try:
-                conn.execute(text(f"ALTER TYPE commandintent ADD VALUE IF NOT EXISTS '{val}'"))
-                logger.info("Enum value ensured", value=val)
-            except Exception as exc:
-                logger.warning("Enum migration skipped", value=val, reason=str(exc))
+configure_logging()
+logger = get_logger("aura.main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting Aura API", version=settings.VERSION, environment=settings.ENVIRONMENT)
-    init_db()
-    _migrate_enum_values()
-    await worker_manager.start_all()
+    logger.info(
+        "aura.startup",
+        environment=settings.environment,
+        ai_enabled=settings.ai_enabled,
+        version=settings.version,
+    )
     yield
-    logger.info("Shutting down Aura API")
-    await worker_manager.stop_all()
+    logger.info("aura.shutdown")
 
 
-app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.VERSION,
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
-    lifespan=lifespan,
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.version,
+        debug=settings.debug,
+        docs_url="/docs" if settings.debug else None,
+        redoc_url=None,
+        lifespan=lifespan,
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+    @app.get("/health", tags=["health"])
+    def health() -> dict:
+        """Liveness probe."""
+        return {"status": "ok", "service": settings.app_name, "version": settings.version}
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(sessions.router, prefix="/api/sessions", tags=["Sessions"])
-app.include_router(quiz.router, prefix="/api/quiz", tags=["Quizzes"])
+    @app.get("/health/db", tags=["health"])
+    def health_db() -> dict:
+        """Readiness probe — verifies the database connection."""
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return {"status": "ok", "database": "reachable"}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("aura.health.db_unreachable", error=str(exc))
+            return {"status": "degraded", "database": "unreachable"}
+
+    @app.get("/", tags=["meta"])
+    def root() -> dict:
+        return {"app": settings.app_name, "version": settings.version, "docs": "/docs"}
+
+    return app
 
 
-@app.get("/")
-async def root():
-    return {"name": settings.APP_NAME, "version": settings.VERSION, "status": "operational"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-
-combined_app = socketio.ASGIApp(sio, other_asgi_app=app)
-app = combined_app
+app = create_app()
