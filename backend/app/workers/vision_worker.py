@@ -16,7 +16,9 @@ from app.core.config import settings
 from app.core.database import session_scope
 from app.core.logging import get_logger
 from app.models.whiteboard import WhiteboardLog
+from app.services.context_manager import context_manager
 from app.websocket.connection import broadcast_to_session
+from app.workers.compression_worker import maybe_compress
 
 logger = get_logger("aura.vision")
 
@@ -166,3 +168,7 @@ async def process_snapshot(
             session_id, "board_insight", {"description": ocr[:500], "timestamp": ts.isoformat()}
         )
     logger.info("vision.ocr_done", session_id=session_id, chars=len(ocr))
+
+    tokens = context_manager.add(session_id, "board", ocr)
+    await broadcast_to_session(session_id, "context_update", {"tokens": tokens})
+    await maybe_compress(session_id)

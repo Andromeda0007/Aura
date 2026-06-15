@@ -35,6 +35,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [connected, setConnected] = useState(false);
   const [command, setCommand] = useState("");
+  const [tokens, setTokens] = useState(0);
   const connectedOnce = useRef(false);
 
   const { currentSession, setSession, isRecording, setRecording, compression } = useSessionStore();
@@ -71,12 +72,14 @@ export function Workspace({ sessionId }: { sessionId: string }) {
       }),
     );
     socket.on("command_response", (d: AIResponse) => addResponse(d));
+    socket.on("context_update", (d: { tokens?: number }) => setTokens(d?.tokens ?? 0));
     socket.on("compression_started", () =>
       setCompression({ status: "started", message: "Compressing context…" }),
     );
-    socket.on("compression_complete", (d: { segmentNum?: number }) =>
-      setCompression({ status: "complete", segmentNum: d?.segmentNum }),
-    );
+    socket.on("compression_complete", (d: { segmentNum?: number }) => {
+      setCompression({ status: "complete", segmentNum: d?.segmentNum });
+      setTokens(0);
+    });
     socket.on("error", (d: { message?: string }) => toast.error(d?.message ?? "Realtime error"));
 
     return () => {
@@ -127,9 +130,10 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {compression && (
+          {(tokens > 0 || compression) && (
             <span className="hidden rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground sm:inline">
-              context · {compression.status === "started" ? "compressing…" : "compressed ✓"}
+              context · ~{tokens} tok
+              {compression?.status === "started" ? " · compressing…" : ""}
             </span>
           )}
           <Button

@@ -213,5 +213,31 @@ class AIService:
         user = f"Problem: {problem}\nExpected: {correct_answer}\nStudent answer: {user_answer}"
         return await self._generate_json("fast", system, user)
 
+    async def compress_context(self, buffer_text: str) -> dict[str, Any]:
+        """Compress a lecture buffer into a structured summary segment."""
+        system = (
+            "Compress this lecture buffer into a structured JSON summary that preserves "
+            "continuity for later questions. Respond with ONLY JSON: "
+            '{"topicFlow": [str], "keyConcepts": {concept: definition}, '
+            '"visualReferences": [str], "dependencies": [str]}.'
+        )
+        data = await self._generate_json("fast", system, buffer_text[:8000])
+        if "topicFlow" in data:
+            return data
+        # Extractive fallback so compression always produces something usable.
+        words: list[str] = []
+        for w in buffer_text.split():
+            if w.lower() not in words:
+                words.append(w.lower())
+            if len(words) >= 12:
+                break
+        return {
+            "topicFlow": words,
+            "keyConcepts": {},
+            "visualReferences": [],
+            "dependencies": [],
+            "_fallback": True,
+        }
+
 
 ai_service = AIService()

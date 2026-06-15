@@ -16,7 +16,9 @@ from datetime import datetime, timezone
 from app.core.logging import get_logger
 from app.core.database import session_scope
 from app.models.transcript import Transcript
+from app.services.context_manager import context_manager
 from app.websocket.connection import broadcast_to_session
+from app.workers.compression_worker import maybe_compress
 
 logger = get_logger("aura.stt")
 
@@ -51,6 +53,10 @@ async def _persist_and_broadcast(session_id: str, text: str, confidence: float) 
         payload = {"id": str(row.id), "text": text, "timestamp": ts.isoformat(), "confidence": confidence}
     await broadcast_to_session(session_id, "transcript_update", payload)
     logger.info("stt.transcript_saved", session_id=session_id, chars=len(text))
+
+    tokens = context_manager.add(session_id, "speech", text)
+    await broadcast_to_session(session_id, "context_update", {"tokens": tokens})
+    await maybe_compress(session_id)
 
 
 async def save_transcript_text(session_id: str, text: str, confidence: float = 0.9) -> None:
