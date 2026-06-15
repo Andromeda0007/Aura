@@ -7,6 +7,7 @@ import asyncio
 from app.core.logging import get_logger
 from app.websocket.connection import active_connections, sio
 from app.workers.stt_worker import save_transcript_text, transcribe_audio
+from app.workers.vision_worker import process_snapshot
 
 logger = get_logger("aura.ws.handlers")
 
@@ -34,3 +35,20 @@ async def handle_audio_chunk(sid: str, data: dict) -> None:
     audio = (data or {}).get("data") or (data or {}).get("audio")
     if audio:
         asyncio.create_task(transcribe_audio(session_id, audio))
+
+
+@sio.on("canvas_snapshot")
+async def handle_canvas_snapshot(sid: str, data: dict) -> None:
+    session_id = _session_for(sid)
+    if not session_id:
+        return
+    image = (data or {}).get("imageData") or (data or {}).get("image")
+    if image:
+        asyncio.create_task(
+            process_snapshot(
+                session_id,
+                image,
+                (data or {}).get("tldrawState"),
+                (data or {}).get("pageNumber", 1),
+            )
+        )
