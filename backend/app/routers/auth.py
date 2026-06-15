@@ -18,6 +18,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
@@ -42,11 +43,13 @@ def signup(body: SignupRequest, db: DBSession = Depends(get_db)) -> AuthResponse
     exists = db.scalar(select(User).where(User.email == body.email.lower()))
     if exists:
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    # Defense-in-depth: signup always creates a teacher. The client-supplied role
+    # is ignored so a user can never self-assign admin/elevated roles.
     user = User(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         full_name=body.full_name,
-        role=body.role,
+        role=UserRole.TEACHER,
     )
     db.add(user)
     db.commit()
