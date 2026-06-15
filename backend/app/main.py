@@ -83,6 +83,7 @@ def create_app() -> FastAPI:
 import socketio as _socketio  # noqa: E402
 
 from app.websocket.connection import sio  # noqa: E402
+import app.websocket.handlers  # noqa: E402, F401  (registers data-event handlers)
 
 fastapi_app = create_app()
 

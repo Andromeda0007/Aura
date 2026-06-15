@@ -6,11 +6,13 @@ from app.models.enums import (
     UserRole,
 )
 from app.models.session import Session
+from app.models.transcript import Transcript
 from app.models.user import User
 
 __all__ = [
     "User",
     "Session",
+    "Transcript",
     "UserRole",
     "SessionStatus",
     "CommandIntent",

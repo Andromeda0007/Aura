@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AudioCapture } from "@/components/audio/AudioCapture";
 import { AiPanel } from "@/components/classroom/AiPanel";
 import { TranscriptPanel } from "@/components/classroom/TranscriptPanel";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -96,6 +97,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex h-dvh flex-col">
+      <AudioCapture sessionId={sessionId} enabled={isRecording} />
       {/* Top bar */}
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
