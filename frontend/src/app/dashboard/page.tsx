@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { LogOut, Plus } from "lucide-react";
+import { BarChart3, LogOut, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -63,6 +63,12 @@ export default function DashboardPage() {
           <span className="hidden text-sm text-muted-foreground sm:inline">
             {user?.full_name}
           </span>
+          <Link
+            href="/stats"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm hover:bg-muted"
+          >
+            <BarChart3 className="h-4 w-4" /> Stats
+          </Link>
           <ThemeToggle />
           <Button
             variant="ghost" size="icon" aria-label="Log out"

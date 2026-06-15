@@ -74,3 +74,22 @@ export const sessionApi = {
     api.get(`/export/${id}`, { responseType: "blob" }).then((r) => r.data as Blob),
 };
 
+export interface StatsOverview {
+  totalSessions: number;
+  totalCommands: number;
+  totalQuizzes: number;
+  totalTranscripts: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  intentMix: Record<string, number>;
+}
+export interface StatsActivity {
+  sessionsByDay: Record<string, number>;
+  commandsByDay: Record<string, number>;
+}
+
+export const statsApi = {
+  overview: () => api.get<StatsOverview>("/stats/overview").then((r) => r.data),
+  activity: () => api.get<StatsActivity>("/stats/activity").then((r) => r.data),
+};
+
