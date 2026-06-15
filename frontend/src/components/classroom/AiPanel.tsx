@@ -2,17 +2,36 @@
 
 import { Sparkles } from "lucide-react";
 
+import { DiagramDisplay } from "@/components/ai-panel/DiagramDisplay";
 import { QuizDisplay } from "@/components/ai-panel/QuizDisplay";
+import {
+  AnswerDisplay,
+  ExampleDisplay,
+  ExplanationDisplay,
+  FormatBoardDisplay,
+  SummaryDisplay,
+} from "@/components/ai-panel/displays";
 import { useSessionStore } from "@/store/sessionStore";
 import type { AIResponse } from "@/types";
 
 function renderResponse(r: AIResponse) {
-  if (r.type === "quiz") return <QuizDisplay data={r.data as never} />;
-  return (
-    <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground">
-      {typeof r.data === "string" ? r.data : JSON.stringify(r.data, null, 2)}
-    </pre>
-  );
+  const d = r.data as never;
+  switch (r.type) {
+    case "quiz":
+      return <QuizDisplay data={d} />;
+    case "summary":
+      return <SummaryDisplay data={d} />;
+    case "explanation":
+      return <ExplanationDisplay data={d} />;
+    case "example":
+      return <ExampleDisplay data={d} />;
+    case "diagram":
+      return <DiagramDisplay data={d} />;
+    case "format_board":
+      return <FormatBoardDisplay data={d} />;
+    default:
+      return <AnswerDisplay data={d} />;
+  }
 }
 
 export function AiPanel() {
