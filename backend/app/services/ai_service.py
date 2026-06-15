@@ -151,5 +151,67 @@ class AIService:
             return {"error": "Could not generate a valid quiz. Please try again."}
         return {"questions": questions}
 
+    async def _generate_json(self, tier: str, system: str, user: str) -> dict[str, Any]:
+        raw = await self._complete(tier, system, user)
+        data = self._parse_json(raw)
+        if not data:
+            return {"error": "Generation failed. Please try again."}
+        return data
+
+    async def summarize(self, context: str) -> dict[str, Any]:
+        system = (
+            "You are an expert teacher. Summarize the lecture context in 200-500 words, "
+            "clear and well structured. Respond with ONLY JSON: "
+            '{"summary": str, "keyPoints": [str, ...]}.'
+        )
+        return await self._generate_json("smart", system, f"Lecture context:\n{context}")
+
+    async def explain(self, context: str, command: str) -> dict[str, Any]:
+        system = (
+            "You are an expert teacher. Explain the requested concept clearly using the lecture "
+            'context. Respond with ONLY JSON: {"explanation": str, "nextTopics": [str, str, str]}.'
+        )
+        return await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+
+    async def generate_example(self, context: str, command: str) -> dict[str, Any]:
+        system = (
+            "You are an expert teacher. Produce ONE worked example relevant to the lecture. "
+            'Respond with ONLY JSON: {"problem": str, "solution": str, "correct_answer": str}.'
+        )
+        return await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+
+    async def generate_diagram(self, context: str, command: str) -> dict[str, Any]:
+        system = (
+            "You are an expert teacher. Create a Mermaid diagram (flowchart/sequence/graph) that "
+            "illustrates the requested concept from the lecture. Use valid Mermaid syntax. "
+            'Respond with ONLY JSON: {"mermaid": str, "title": str}.'
+        )
+        data = await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+        if "mermaid" in data and isinstance(data["mermaid"], str):
+            data["mermaid"] = data["mermaid"].strip().removeprefix("```mermaid").removeprefix("```").removesuffix("```").strip()
+        return data
+
+    async def answer_question(self, context: str, command: str) -> dict[str, Any]:
+        system = (
+            "You are an expert teacher. Answer the question using the lecture context. "
+            'Respond with ONLY JSON: {"answer": str, "feedback": str}.'
+        )
+        return await self._generate_json("smart", system, f"Question: {command}\n\nContext:\n{context}")
+
+    async def format_board(self, context: str) -> dict[str, Any]:
+        system = (
+            "You reformat messy whiteboard OCR text into clean, well-structured blocks. "
+            'Respond with ONLY JSON: {"blocks": [str, ...]} where each block is a tidy line/heading.'
+        )
+        return await self._generate_json("fast", system, f"Whiteboard / context:\n{context}")
+
+    async def validate_answer(self, problem: str, correct_answer: str, user_answer: str) -> dict[str, Any]:
+        system = (
+            "You grade a student's answer. Be lenient on formatting, units, and phrasing; judge "
+            'correctness of meaning. Respond with ONLY JSON: {"isCorrect": bool, "feedback": str}.'
+        )
+        user = f"Problem: {problem}\nExpected: {correct_answer}\nStudent answer: {user_answer}"
+        return await self._generate_json("fast", system, user)
+
 
 ai_service = AIService()

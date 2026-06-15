@@ -74,9 +74,18 @@ async def process_command(session_id: str, raw_command: str) -> None:
                     db.add(quiz)
                     db.flush()
                     data = {**data, "shareCode": quiz.share_code}
-        else:
-            # Remaining intents land in P6.
-            data = {"message": f"The '{intent.value}' capability is coming in the next phase."}
+        elif intent == CommandIntent.SUMMARIZE:
+            data = await ai_service.summarize(context)
+        elif intent == CommandIntent.EXPLAIN:
+            data = await ai_service.explain(context, command)
+        elif intent == CommandIntent.GENERATE_EXAMPLE:
+            data = await ai_service.generate_example(context, command)
+        elif intent == CommandIntent.GENERATE_DIAGRAM:
+            data = await ai_service.generate_diagram(context, command)
+        elif intent == CommandIntent.FORMAT_BOARD:
+            data = await ai_service.format_board(context)
+        else:  # ANSWER_QUESTION and OTHER both answer the query
+            data = await ai_service.answer_question(context, command)
     except Exception as exc:  # noqa: BLE001
         logger.error("llm.execute_failed", error=str(exc), intent=intent.value)
         data, status, error = {"error": "Generation failed. Please try again."}, CommandStatus.FAILED, str(exc)
