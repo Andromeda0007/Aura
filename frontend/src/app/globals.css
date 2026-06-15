@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
+/* next-themes drives light/dark via the `class` strategy on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Design tokens (light) — bright, lights-on classroom, high contrast ---- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --primary: #4f46e5;        /* indigo-600 */
+  --primary-foreground: #ffffff;
+  --accent: #8b5cf6;         /* violet-500 */
+  --accent-foreground: #ffffff;
+  --ring: #6366f1;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --radius: 1rem;
 }
 
+/* ---- Design tokens (dark) — dimmed room, glare-reduced navy ---- */
+.dark {
+  --background: #0b1020;
+  --foreground: #e5e7eb;
+  --card: #131a2b;
+  --card-foreground: #e5e7eb;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #273449;
+  --input: #273449;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --accent: #a78bfa;
+  --accent-foreground: #0b1020;
+  --ring: #818cf8;
+  --success: #22c55e;
+  --danger: #ef4444;
+}
+
+/* Expose tokens as Tailwind utilities (bg-background, text-foreground, ...) */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --radius-xl2: var(--radius);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition: background-color 200ms ease, color 200ms ease;
+  }
 }
