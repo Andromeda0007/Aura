@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Radio, Send, SquarePen } from "lucide-react";
+import { ArrowLeft, Radio, Send } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +17,18 @@ import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
 import { useSessionStore } from "@/store/sessionStore";
 import type { AIResponse } from "@/types";
+
+const Board = dynamic(
+  () => import("@/components/whiteboard/Board").then((m) => m.Board),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-full place-items-center text-sm text-muted-foreground">
+        Loading board…
+      </div>
+    ),
+  },
+);
 
 export function Workspace({ sessionId }: { sessionId: string }) {
   const ready = useRequireAuth();
@@ -136,12 +149,8 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           <TranscriptPanel />
         </section>
 
-        <section className="grid min-h-0 place-items-center rounded-2xl border border-border bg-card">
-          <div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
-            <SquarePen className="h-8 w-8" />
-            <p className="font-medium text-foreground">Whiteboard</p>
-            <p className="max-w-xs text-sm">The tldraw board (pen + touch) arrives in the next phase.</p>
-          </div>
+        <section className="relative min-h-0 overflow-hidden rounded-2xl border border-border bg-card">
+          <Board sessionId={sessionId} recording={isRecording} />
         </section>
 
         <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
