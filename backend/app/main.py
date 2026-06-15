@@ -71,6 +71,12 @@ def create_app() -> FastAPI:
     def root() -> dict:
         return {"app": settings.app_name, "version": settings.version, "docs": "/docs"}
 
+    # Routers
+    from app.routers import auth, sessions
+
+    app.include_router(auth.router)
+    app.include_router(sessions.router)
+
     return app
 
 
