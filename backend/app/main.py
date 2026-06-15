@@ -80,4 +80,11 @@ def create_app() -> FastAPI:
     return app
 
 
-app = create_app()
+import socketio as _socketio  # noqa: E402
+
+from app.websocket.connection import sio  # noqa: E402
+
+fastapi_app = create_app()
+
+# Combined ASGI app: Socket.IO at /socket.io/, FastAPI for everything else.
+app = _socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
