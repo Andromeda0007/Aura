@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import assert_batch_access, batch_of_session
+from app.core.access import assert_semester_access, semester_of_session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.command import Command
@@ -50,7 +50,7 @@ def export_session(
     sess = db.get(Session, session_id)
     if sess is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
-    assert_batch_access(db, user, batch_of_session(db, session_id))
+    assert_semester_access(db, user, semester_of_session(db, session_id))
 
     transcripts = db.scalars(
         select(Transcript).where(Transcript.session_id == session_id).order_by(Transcript.timestamp)

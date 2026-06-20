@@ -9,11 +9,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import assert_batch_access, is_admin
+from app.core.access import assert_semester_access, is_admin
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_staff
 from app.models.assignment import Assignment, AssignmentSubmission
-from app.models.batch import Batch
 from app.models.course import Course
 from app.models.quiz import Quiz
 from app.models.user import User
@@ -57,7 +56,7 @@ def create_assignment(
         course = db.get(Course, body.course_id)
         if course is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-        assert_batch_access(db, user, course.batch_id, write=True)
+        assert_semester_access(db, user, course.semester_id, write=True)
     a = Assignment(
         teacher_id=user.id,
         course_id=body.course_id,
@@ -113,14 +112,6 @@ def submissions(
             .order_by(AssignmentSubmission.created_at.desc())
         ).all()
     )
-    # roster completion: who from the course's batch has / hasn't submitted (by name)
-    roster: list[str] = []
-    if a.course_id:
-        course = db.get(Course, a.course_id)
-        batch = db.get(Batch, course.batch_id) if course else None
-        roster = [r.get("name") for r in (batch.roster or []) if r.get("name")] if batch else []
-    submitted_names = {s.student_name for s in subs if s.student_name}
-    missing = [n for n in roster if n not in submitted_names]
     return {
         "title": a.title,
         "hasQuiz": a.quiz_id is not None,
@@ -133,7 +124,7 @@ def submissions(
             }
             for s in subs
         ],
-        "notSubmitted": missing,
+        "notSubmitted": [],
     }
 
 

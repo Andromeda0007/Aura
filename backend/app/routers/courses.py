@@ -1,4 +1,4 @@
-"""Courses (subjects within a Batch). Hold Units; sessions live under Units."""
+"""Courses (subjects within a Semester). Hold Units; sessions live under Units."""
 from __future__ import annotations
 
 import uuid
@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import assert_batch_access
+from app.core.access import assert_semester_access
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_staff
 from app.core.hierarchy import course_session_ids
@@ -50,10 +50,10 @@ def _counts(db: DBSession, course_id: uuid.UUID) -> dict:
 def create_course(
     body: CourseCreate, db: DBSession = Depends(get_db), user: User = Depends(require_staff)
 ) -> CourseOut:
-    assert_batch_access(db, user, body.batch_id, write=True)
+    assert_semester_access(db, user, body.semester_id, write=True)
     course = Course(
         teacher_id=user.id,
-        batch_id=body.batch_id,
+        semester_id=body.semester_id,
         name=body.name,
         professor=body.professor,
         cover=body.cover,
@@ -69,14 +69,14 @@ def create_course(
 
 @router.get("")
 def list_courses(
-    batch_id: uuid.UUID = Query(...),
+    semester_id: uuid.UUID = Query(...),
     db: DBSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[dict]:
-    assert_batch_access(db, user, batch_id)
+    assert_semester_access(db, user, semester_id)
     courses = list(
         db.scalars(
-            select(Course).where(Course.batch_id == batch_id).order_by(Course.created_at.desc())
+            select(Course).where(Course.semester_id == semester_id).order_by(Course.created_at.desc())
         ).all()
     )
     unit_counts = dict(
@@ -103,7 +103,7 @@ def get_course(
     user: User = Depends(get_current_user),
 ) -> dict:
     course = _course_or_404(course_id, db)
-    assert_batch_access(db, user, course.batch_id)
+    assert_semester_access(db, user, course.semester_id)
     units = list(
         db.scalars(
             select(Unit).where(Unit.course_id == course.id).order_by(Unit.order, Unit.created_at)
@@ -134,7 +134,7 @@ def update_course(
     user: User = Depends(require_staff),
 ) -> CourseOut:
     course = _course_or_404(course_id, db)
-    assert_batch_access(db, user, course.batch_id, write=True)
+    assert_semester_access(db, user, course.semester_id, write=True)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(course, key, value)
     db.commit()
@@ -149,7 +149,7 @@ def delete_course(
     user: User = Depends(require_staff),
 ) -> Response:
     course = _course_or_404(course_id, db)
-    assert_batch_access(db, user, course.batch_id, write=True)
+    assert_semester_access(db, user, course.semester_id, write=True)
     db.delete(course)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -162,5 +162,5 @@ def course_stats(
     user: User = Depends(get_current_user),
 ) -> dict:
     course = _course_or_404(course_id, db)
-    assert_batch_access(db, user, course.batch_id)
+    assert_semester_access(db, user, course.semester_id)
     return aggregate_stats(db, course_session_ids(db, course_id))

@@ -1,7 +1,7 @@
-"""Resolve the leaf sessions under any hierarchy level (Batch/Course/Unit).
+"""Resolve the leaf sessions under any hierarchy level.
 
-Chain: Session.unit_id -> Unit.course_id -> Course.batch_id. Used by scoped
-stats and card counts (token sums, etc.).
+Chain: Session.unit_id -> Unit.course_id -> Course.semester_id ->
+Semester.department_id -> Department.batch_id. Used by scoped stats + counts.
 """
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
 from app.models.course import Course
+from app.models.department import Department
+from app.models.semester import Semester
 from app.models.session import Session
 from app.models.unit import Unit
 
@@ -29,12 +31,37 @@ def course_session_ids(db: DBSession, course_id: uuid.UUID) -> list[uuid.UUID]:
     )
 
 
+def semester_session_ids(db: DBSession, semester_id: uuid.UUID) -> list[uuid.UUID]:
+    return list(
+        db.scalars(
+            select(Session.id)
+            .join(Unit, Session.unit_id == Unit.id)
+            .join(Course, Unit.course_id == Course.id)
+            .where(Course.semester_id == semester_id)
+        ).all()
+    )
+
+
+def department_session_ids(db: DBSession, department_id: uuid.UUID) -> list[uuid.UUID]:
+    return list(
+        db.scalars(
+            select(Session.id)
+            .join(Unit, Session.unit_id == Unit.id)
+            .join(Course, Unit.course_id == Course.id)
+            .join(Semester, Course.semester_id == Semester.id)
+            .where(Semester.department_id == department_id)
+        ).all()
+    )
+
+
 def batch_session_ids(db: DBSession, batch_id: uuid.UUID) -> list[uuid.UUID]:
     return list(
         db.scalars(
             select(Session.id)
             .join(Unit, Session.unit_id == Unit.id)
             .join(Course, Unit.course_id == Course.id)
-            .where(Course.batch_id == batch_id)
+            .join(Semester, Course.semester_id == Semester.id)
+            .join(Department, Semester.department_id == Department.id)
+            .where(Department.batch_id == batch_id)
         ).all()
     )

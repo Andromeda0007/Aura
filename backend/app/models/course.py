@@ -22,8 +22,8 @@ class Course(Base):
     teacher_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    batch_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("batches.id", ondelete="CASCADE"), index=True, nullable=False
+    semester_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("semesters.id", ondelete="CASCADE"), index=True, nullable=False
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     professor: Mapped[str] = mapped_column(String(160), default="", nullable=False)

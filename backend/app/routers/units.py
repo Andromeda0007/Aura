@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import assert_batch_access, batch_of_unit
+from app.core.access import assert_semester_access, semester_of_unit
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_staff
 from app.core.hierarchy import unit_session_ids
@@ -36,7 +36,7 @@ def create_unit(
     course = db.get(Course, body.course_id)
     if course is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-    assert_batch_access(db, user, course.batch_id, write=True)
+    assert_semester_access(db, user, course.semester_id, write=True)
     unit = Unit(course_id=body.course_id, name=body.name, description=body.description, order=body.order)
     db.add(unit)
     db.commit()
@@ -51,7 +51,7 @@ def get_unit(
     user: User = Depends(get_current_user),
 ) -> dict:
     unit = _unit_or_404(unit_id, db)
-    assert_batch_access(db, user, batch_of_unit(db, unit_id))
+    assert_semester_access(db, user, semester_of_unit(db, unit_id))
     sessions = db.scalars(
         select(Session).where(Session.unit_id == unit.id).order_by(Session.created_at.desc())
     ).all()
@@ -69,7 +69,7 @@ def update_unit(
     user: User = Depends(require_staff),
 ) -> UnitOut:
     unit = _unit_or_404(unit_id, db)
-    assert_batch_access(db, user, batch_of_unit(db, unit_id), write=True)
+    assert_semester_access(db, user, semester_of_unit(db, unit_id), write=True)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(unit, key, value)
     db.commit()
@@ -84,7 +84,7 @@ def delete_unit(
     user: User = Depends(require_staff),
 ) -> Response:
     unit = _unit_or_404(unit_id, db)
-    assert_batch_access(db, user, batch_of_unit(db, unit_id), write=True)
+    assert_semester_access(db, user, semester_of_unit(db, unit_id), write=True)
     db.delete(unit)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -97,5 +97,5 @@ def unit_stats(
     user: User = Depends(get_current_user),
 ) -> dict:
     _unit_or_404(unit_id, db)
-    assert_batch_access(db, user, batch_of_unit(db, unit_id))
+    assert_semester_access(db, user, semester_of_unit(db, unit_id))
     return aggregate_stats(db, unit_session_ids(db, unit_id))

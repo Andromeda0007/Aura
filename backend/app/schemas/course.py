@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CourseCreate(BaseModel):
-    batch_id: uuid.UUID
+    semester_id: uuid.UUID
     name: str = Field(min_length=1, max_length=200)
     professor: str = Field(default="", max_length=160)
     cover: str = Field(default="", max_length=40)  # preset art key
@@ -30,7 +30,7 @@ class CourseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    batch_id: uuid.UUID
+    semester_id: uuid.UUID
     name: str
     professor: str
     cover: str

@@ -1,6 +1,6 @@
-"""BatchMember — links a teacher (many) or student (one) to a Batch.
+"""SemesterMember — links a teacher (many, one dept) or student (one) to a Semester.
 
-Admins are NOT listed here; they have implicit access to all batches by role.
+Admins are NOT listed here; they have implicit access to everything by role.
 """
 from __future__ import annotations
 
@@ -14,13 +14,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 
-class BatchMember(Base):
-    __tablename__ = "batch_members"
-    __table_args__ = (UniqueConstraint("batch_id", "user_id", name="uq_batch_member"),)
+class SemesterMember(Base):
+    __tablename__ = "semester_members"
+    __table_args__ = (UniqueConstraint("semester_id", "user_id", name="uq_semester_member"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    batch_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("batches.id", ondelete="CASCADE"), index=True, nullable=False
+    semester_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("semesters.id", ondelete="CASCADE"), index=True, nullable=False
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False

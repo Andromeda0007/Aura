@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import accessible_session_ids, assert_batch_access, batch_of_session, batch_of_unit
+from app.core.access import accessible_session_ids, assert_semester_access, semester_of_session, semester_of_unit
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_staff
 from app.core.logging import get_logger
@@ -47,13 +47,13 @@ def _session_or_404(session_id: uuid.UUID, db: DBSession) -> Session:
 
 def _read(session_id: uuid.UUID, db: DBSession, user: User) -> Session:
     sess = _session_or_404(session_id, db)
-    assert_batch_access(db, user, batch_of_session(db, session_id))
+    assert_semester_access(db, user, semester_of_session(db, session_id))
     return sess
 
 
 def _write(session_id: uuid.UUID, db: DBSession, user: User) -> Session:
     sess = _session_or_404(session_id, db)
-    assert_batch_access(db, user, batch_of_session(db, session_id), write=True)
+    assert_semester_access(db, user, semester_of_session(db, session_id), write=True)
     return sess
 
 
@@ -67,7 +67,7 @@ def create_session(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "unit_id is required")
     if db.get(Unit, body.unit_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
-    assert_batch_access(db, user, batch_of_unit(db, body.unit_id), write=True)
+    assert_semester_access(db, user, semester_of_unit(db, body.unit_id), write=True)
     sess = Session(
         teacher_id=user.id,
         unit_id=body.unit_id,
@@ -95,7 +95,7 @@ def update_session(
     if "unit_id" in fields and body.unit_id is not None:
         if db.get(Unit, body.unit_id) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
-        assert_batch_access(db, user, batch_of_unit(db, body.unit_id), write=True)
+        assert_semester_access(db, user, semester_of_unit(db, body.unit_id), write=True)
         sess.unit_id = body.unit_id
     if "language" in fields and body.language:
         sess.language = body.language

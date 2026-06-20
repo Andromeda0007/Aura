@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.access import accessible_session_ids, assert_batch_access, batch_of_session
+from app.core.access import accessible_session_ids, assert_semester_access, semester_of_session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.quiz import Quiz
@@ -99,7 +99,7 @@ def quiz_results(
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Quiz not found")
     quiz, sess = row
-    assert_batch_access(db, user, batch_of_session(db, sess.id))
+    assert_semester_access(db, user, semester_of_session(db, sess.id))
 
     attempts = list(
         db.scalars(

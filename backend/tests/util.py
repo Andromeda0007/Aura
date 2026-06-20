@@ -1,4 +1,4 @@
-"""Shared test helpers for the RBAC world (no signup endpoint anymore)."""
+"""Shared test helpers for the v5 academic tree + RBAC (no signup endpoint)."""
 from __future__ import annotations
 
 import uuid
@@ -9,8 +9,8 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.core.security import hash_password
 from app.main import app
-from app.models.batch_member import BatchMember
 from app.models.enums import UserRole
+from app.models.semester_member import SemesterMember
 from app.models.user import User
 
 client = TestClient(app)
@@ -48,21 +48,16 @@ def admin_token() -> str:
     return _login(email)
 
 
-def make_user(role: UserRole = UserRole.TEACHER, batch_ids: tuple = ()) -> tuple[str, str]:
-    """Create a user directly + batch memberships; return (user_id, token)."""
+def make_user(role: UserRole = UserRole.TEACHER, semester_ids: tuple = ()) -> tuple[str, str]:
+    """Create a user directly + semester memberships; return (user_id, token)."""
     email = f"{role.value}_{uuid.uuid4().hex[:8]}@aura.app"
     db = SessionLocal()
     try:
-        u = User(
-            email=email,
-            password_hash=hash_password(_PW),
-            full_name=role.value.title(),
-            role=role,
-        )
+        u = User(email=email, password_hash=hash_password(_PW), full_name=role.value.title(), role=role)
         db.add(u)
         db.flush()
-        for bid in batch_ids:
-            db.add(BatchMember(batch_id=uuid.UUID(str(bid)), user_id=u.id))
+        for sid in semester_ids:
+            db.add(SemesterMember(semester_id=uuid.UUID(str(sid)), user_id=u.id))
         db.commit()
         uid = str(u.id)
     finally:
@@ -70,27 +65,29 @@ def make_user(role: UserRole = UserRole.TEACHER, batch_ids: tuple = ()) -> tuple
     return uid, _login(email)
 
 
-def make_batch(admin_h: dict, program: str = "CS", semester: int = 5, year: int = 2026) -> dict:
-    r = client.post(
-        "/batches", json={"program": program, "semester": semester, "year": year}, headers=admin_h
-    )
+def make_batch(admin_h: dict, start: int = 2022, end: int = 2026) -> dict:
+    r = client.post("/batches", json={"start_year": start, "end_year": end}, headers=admin_h)
     assert r.status_code == 201, r.text
     return r.json()
 
 
-def make_hierarchy(h: dict, batch_id: str | None = None) -> dict:
-    """Create (or reuse) batch → course → unit → session with the given staff token."""
-    if batch_id is None:
-        batch_id = client.post(
-            "/batches", json={"program": "CS", "semester": 5, "year": 2026}, headers=h
-        ).json()["id"]
-    course = client.post(
-        "/courses", json={"batch_id": batch_id, "name": "DBMS"}, headers=h
-    ).json()
-    unit = client.post(
-        "/units", json={"course_id": course["id"], "name": "Unit 1"}, headers=h
-    ).json()
-    sess = client.post(
-        "/sessions", json={"subject": "S1", "unit_id": unit["id"]}, headers=h
-    ).json()
-    return {"batch_id": batch_id, "course": course, "unit": unit, "session": sess}
+def make_department(admin_h: dict, batch_id: str, name: str = "CS") -> dict:
+    r = client.post("/departments", json={"batch_id": batch_id, "name": name}, headers=admin_h)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def semesters_of(admin_h: dict, department_id: str) -> list[dict]:
+    return client.get(f"/departments/{department_id}", headers=admin_h).json()["semesters"]
+
+
+def make_hierarchy(h: dict) -> dict:
+    """Build Batch → Department (auto Sem 1–8) → Course → Unit → Session as the given staff."""
+    batch = make_batch(h)
+    dept = make_department(h, batch["id"])
+    sems = semesters_of(h, dept["id"])
+    semester = sems[0]
+    course = client.post("/courses", json={"semester_id": semester["id"], "name": "DBMS"}, headers=h).json()
+    unit = client.post("/units", json={"course_id": course["id"], "name": "Unit 1"}, headers=h).json()
+    sess = client.post("/sessions", json={"subject": "S1", "unit_id": unit["id"]}, headers=h).json()
+    return {"batch": batch, "department": dept, "semester": semester, "course": course, "unit": unit, "session": sess}
