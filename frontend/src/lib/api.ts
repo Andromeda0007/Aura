@@ -77,7 +77,20 @@ export const sessionApi = {
       .then((r) => r.data),
   exportMarkdown: (id: string) =>
     api.get(`/export/${id}`, { responseType: "blob" }).then((r) => r.data as Blob),
+  report: (id: string) => api.get<SessionReport>(`/sessions/${id}/report`).then((r) => r.data),
 };
+
+export interface SessionReport {
+  subject: string;
+  status: string;
+  date: string | null;
+  durationMin: number | null;
+  summary: string;
+  keyPoints: string[];
+  keyConcepts: string[];
+  quizzes: { shareCode: string; questionCount: number; attempts: number; avgPct: number }[];
+  stats: { commands: number; transcripts: number };
+}
 
 export interface StatsOverview {
   totalSessions: number;

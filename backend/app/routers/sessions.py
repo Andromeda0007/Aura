@@ -13,6 +13,8 @@ from app.core.deps import get_current_teacher
 from app.core.logging import get_logger
 from app.models.command import Command
 from app.models.enums import CommandStatus, SessionStatus
+from app.models.quiz import Quiz
+from app.models.quiz_attempt import QuizAttempt
 from app.models.session import Session
 from app.models.transcript import Transcript
 from app.models.course import Course
@@ -157,3 +159,76 @@ def end_session(
         db.refresh(sess)
     logger.info("session.end", session_id=str(sess.id))
     return SessionOut.model_validate(sess)
+
+
+@router.get("/{session_id}/report")
+def session_report(
+    session_id: uuid.UUID,
+    db: DBSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+) -> dict:
+    """Auto end-of-class recap: summary + key concepts + quizzes + stats."""
+    sess = _owned_session(session_id, db, teacher)
+
+    # latest generated summary (if any) for the recap text
+    summary_cmd = db.scalar(
+        select(Command)
+        .where(
+            Command.session_id == sess.id,
+            Command.intent == CommandIntent.SUMMARIZE,
+            Command.status == CommandStatus.COMPLETED,
+        )
+        .order_by(Command.timestamp.desc())
+    )
+    summary_data = (summary_cmd.llm_response or {}) if summary_cmd else {}
+
+    # key concepts: from compressed history if present
+    key_concepts: list[str] = []
+    for seg in sess.compressed_history or []:
+        if isinstance(seg, dict):
+            key_concepts.extend((seg.get("keyConcepts") or {}).keys())
+    key_concepts = list(dict.fromkeys(key_concepts))[:12]
+
+    # quizzes with attempt stats
+    quiz_rows = db.execute(
+        select(
+            Quiz.share_code,
+            Quiz.quiz_data,
+            func.count(QuizAttempt.id),
+            func.avg(QuizAttempt.score * 1.0 / func.nullif(QuizAttempt.total, 0)),
+        )
+        .outerjoin(QuizAttempt, QuizAttempt.quiz_id == Quiz.id)
+        .where(Quiz.session_id == sess.id)
+        .group_by(Quiz.id)
+    ).all()
+    quizzes = [
+        {
+            "shareCode": code,
+            "questionCount": len((data or {}).get("questions", [])),
+            "attempts": n,
+            "avgPct": round((avg or 0) * 100),
+        }
+        for code, data, n, avg in quiz_rows
+    ]
+
+    commands = db.scalar(
+        select(func.count()).select_from(Command).where(Command.session_id == sess.id)
+    )
+    transcripts = db.scalar(
+        select(func.count()).select_from(Transcript).where(Transcript.session_id == sess.id)
+    )
+    duration_min = None
+    if sess.end_time and sess.start_time:
+        duration_min = round((sess.end_time - sess.start_time).total_seconds() / 60)
+
+    return {
+        "subject": sess.subject,
+        "status": sess.status.value,
+        "date": sess.created_at.isoformat() if sess.created_at else None,
+        "durationMin": duration_min,
+        "summary": summary_data.get("summary", ""),
+        "keyPoints": summary_data.get("keyPoints", []),
+        "keyConcepts": key_concepts,
+        "quizzes": quizzes,
+        "stats": {"commands": commands or 0, "transcripts": transcripts or 0},
+    }
