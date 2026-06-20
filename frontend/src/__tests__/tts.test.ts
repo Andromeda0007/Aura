@@ -23,4 +23,12 @@ describe("speakableText", () => {
   it("falls back gracefully", () => {
     expect(speakableText(r("format_board", {}))).toBe("Board formatted.");
   });
+
+  it("reads new response types", () => {
+    expect(speakableText(r("fact", { fact: "Light is fast." }))).toBe("Light is fast.");
+    expect(speakableText(r("list", { title: "Uses of CNNs" }))).toBe("Uses of CNNs");
+    expect(speakableText(r("numerical", { problem: "Find KE" }))).toBe("Find KE");
+    expect(speakableText(r("chemistry", { name: "Benzene" }))).toBe("Benzene");
+    expect(speakableText(r("image", { prompt: "a neuron" }))).toBe("a neuron");
+  });
 });

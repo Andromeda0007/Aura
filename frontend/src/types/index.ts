@@ -44,7 +44,50 @@ export type AIResponseType =
   | "example"
   | "diagram"
   | "answer"
-  | "format_board";
+  | "format_board"
+  | "fact"
+  | "list"
+  | "numerical"
+  | "image"
+  | "chemistry";
+
+export interface FactData {
+  fact?: string;
+  source?: string | null;
+  error?: string;
+}
+
+export interface ListData {
+  title?: string;
+  items?: string[];
+  error?: string;
+}
+
+export interface NumericalData {
+  problem?: string;
+  answer?: number | string;
+  unit?: string | null;
+  tolerance?: number | null;
+  reasoning?: string;
+  error?: string;
+}
+
+export interface ImageData {
+  prompt?: string;
+  imageUrl?: string | null;
+  note?: string;
+  error?: string;
+}
+
+export interface ChemistryData {
+  name?: string;
+  smiles?: string | null;
+  imageUrl?: string | null;
+  cid?: number | null;
+  caption?: string;
+  note?: string;
+  error?: string;
+}
 
 export interface AIResponse {
   type: AIResponseType;

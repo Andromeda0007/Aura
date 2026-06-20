@@ -83,7 +83,23 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
         return;
       }
       const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-      if (payload.kind === "svg" && payload.svg) {
+      if (payload.kind === "image" && payload.imageUrl) {
+        const url = payload.imageUrl;
+        // tldraw's url handler makes a bookmark, not an image — so fetch the bytes
+        // and drop a File. Fall back to a bookmark if the host blocks CORS.
+        void (async () => {
+          try {
+            const res = await fetch(url, { mode: "cors" });
+            const blob = await res.blob();
+            const base = (url.split("/").pop() || "image").split("?")[0];
+            const name = base.includes(".") ? base : `${base || "image"}.png`;
+            const file = new File([blob], name, { type: blob.type || "image/png" });
+            await editor.putExternalContent({ type: "files", files: [file], point });
+          } catch {
+            await editor.putExternalContent({ type: "url", url, point });
+          }
+        })();
+      } else if (payload.kind === "svg" && payload.svg) {
         void editor.putExternalContent({ type: "svg-text", text: payload.svg, point });
       } else if (payload.text) {
         void editor.putExternalContent({ type: "text", text: payload.text, point });

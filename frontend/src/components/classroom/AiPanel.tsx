@@ -8,7 +8,7 @@ import { BOARD_DND_MIME, responseToBoardText, type BoardDragPayload } from "@/li
 import { getSocket } from "@/lib/socket";
 import { speak, speakableText } from "@/lib/tts";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AIResponse } from "@/types";
+import type { AIResponse, ChemistryData, ImageData } from "@/types";
 
 export function AiPanel() {
   const latest = useSessionStore((s) => s.latestResponse);
@@ -40,6 +40,24 @@ export function AiPanel() {
         clone.setAttribute("height", String(Math.round(rect.height) || 420));
         clone.removeAttribute("style"); // drop max-width:100% so it rasterizes at full size
         payload = { kind: "svg", svg: new XMLSerializer().serializeToString(clone) };
+      }
+    } else if (r.type === "image") {
+      const url = (r.data as ImageData).imageUrl;
+      if (url) payload = { kind: "image", imageUrl: url };
+    } else if (r.type === "chemistry") {
+      const url = (r.data as ChemistryData).imageUrl;
+      if (url) {
+        payload = { kind: "image", imageUrl: url };
+      } else {
+        // smiles-drawer renders to a <canvas> — export it as a data URL image.
+        const canvas = e.currentTarget.querySelector<HTMLCanvasElement>("[data-aura-body] canvas");
+        if (canvas) {
+          try {
+            payload = { kind: "image", imageUrl: canvas.toDataURL("image/png") };
+          } catch {
+            /* tainted canvas — fall through to text */
+          }
+        }
       }
     }
 

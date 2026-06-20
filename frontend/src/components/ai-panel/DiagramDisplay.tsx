@@ -9,7 +9,7 @@ export function DiagramDisplay({
   data,
   onRegenerate,
 }: {
-  data: { mermaid?: string; title?: string; error?: string };
+  data: { mermaid?: string; title?: string; kind?: string; error?: string };
   onRegenerate?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);

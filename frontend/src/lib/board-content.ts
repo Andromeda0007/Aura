@@ -1,14 +1,15 @@
 // Turns an Aura response into clean text for the whiteboard, plus the small
 // drag payload shape shared between the AI panel (drag source) and the board
 // (drop target).
-import type { AIResponse } from "@/types";
+import type { AIResponse, ChemistryData, FactData, ImageData, ListData, NumericalData } from "@/types";
 
 export const BOARD_DND_MIME = "application/x-aura-board";
 
 export interface BoardDragPayload {
-  kind: "text" | "svg";
+  kind: "text" | "svg" | "image";
   text?: string; // formatted text for kind === "text"
-  svg?: string; // raw SVG markup for kind === "svg" (diagrams)
+  svg?: string; // raw SVG markup for kind === "svg" (diagrams, smiles)
+  imageUrl?: string; // remote image for kind === "image" (image, chemistry PNG)
 }
 
 const LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -45,10 +46,11 @@ export function responseToBoardText(r: AIResponse): string {
       return blocks.join("\n\n") || "Example";
     }
     case "answer": {
-      const d = r.data as { answer?: string; feedback?: string };
+      const d = r.data as { answer?: string; reasoning?: string; feedback?: string };
+      const reasoning = d.reasoning ?? d.feedback;
       const blocks: string[] = [];
       if (d.answer?.trim()) blocks.push(d.answer.trim());
-      if (d.feedback?.trim() && d.feedback !== d.answer) blocks.push(d.feedback.trim());
+      if (reasoning?.trim() && reasoning !== d.answer) blocks.push(reasoning.trim());
       return blocks.join("\n\n") || "Answer";
     }
     case "quiz": {
@@ -73,6 +75,38 @@ export function responseToBoardText(r: AIResponse): string {
     case "diagram": {
       const d = r.data as { title?: string };
       return d.title?.trim() || "Diagram";
+    }
+    case "fact": {
+      const d = r.data as FactData;
+      const blocks: string[] = [];
+      if (d.fact?.trim()) blocks.push(d.fact.trim());
+      if (d.source?.trim()) blocks.push(`Source: ${d.source.trim()}`);
+      return blocks.join("\n\n") || "Fact";
+    }
+    case "list": {
+      const d = r.data as ListData;
+      const items = (d.items ?? []).filter((i) => i?.trim());
+      const blocks: string[] = [];
+      if (d.title?.trim()) blocks.push(d.title.trim());
+      if (items.length) blocks.push(items.map((it, i) => `${i + 1}. ${it}`).join("\n"));
+      return blocks.join("\n\n") || "List";
+    }
+    case "numerical": {
+      const d = r.data as NumericalData;
+      const blocks: string[] = [];
+      if (d.problem?.trim()) blocks.push(d.problem.trim());
+      if (d.answer !== undefined && d.answer !== "")
+        blocks.push(`Answer: ${d.answer}${d.unit ? ` ${d.unit}` : ""}`);
+      if (d.reasoning?.trim()) blocks.push(d.reasoning.trim());
+      return blocks.join("\n\n") || "Problem";
+    }
+    case "image": {
+      const d = r.data as ImageData;
+      return d.prompt?.trim() || "Image";
+    }
+    case "chemistry": {
+      const d = r.data as ChemistryData;
+      return d.name?.trim() || d.caption?.trim() || "Molecule";
     }
     default:
       return "Aura response";

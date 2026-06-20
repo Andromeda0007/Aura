@@ -1,8 +1,11 @@
 "use client";
 
+import { Lightbulb } from "lucide-react";
 import { useState } from "react";
 
-function ErrorNote({ msg }: { msg: string }) {
+import type { FactData, ListData } from "@/types";
+
+export function ErrorNote({ msg }: { msg: string }) {
   return <p className="text-sm text-danger">{msg}</p>;
 }
 
@@ -73,13 +76,18 @@ export function ExampleDisplay({
   );
 }
 
-export function AnswerDisplay({ data }: { data: { answer?: string; feedback?: string; error?: string } }) {
+export function AnswerDisplay({
+  data,
+}: {
+  data: { answer?: string; reasoning?: string; feedback?: string; error?: string };
+}) {
   if (data.error) return <ErrorNote msg={data.error} />;
+  const reasoning = data.reasoning ?? data.feedback; // backward-compat with old rows
   return (
-    <div className="space-y-1">
-      <p className="whitespace-pre-wrap text-sm text-foreground">{data.answer ?? data.feedback}</p>
-      {data.answer && data.feedback ? (
-        <p className="text-xs text-muted-foreground">{data.feedback}</p>
+    <div className="space-y-1.5">
+      <p className="whitespace-pre-wrap text-sm font-medium text-foreground">{data.answer ?? reasoning}</p>
+      {data.answer && reasoning ? (
+        <p className="whitespace-pre-wrap text-xs text-muted-foreground">{reasoning}</p>
       ) : null}
     </div>
   );
@@ -94,6 +102,38 @@ export function FormatBoardDisplay({ data }: { data: { blocks?: string[]; error?
           {b}
         </div>
       ))}
+    </div>
+  );
+}
+
+export function FactDisplay({ data }: { data: FactData }) {
+  if (data.error) return <ErrorNote msg={data.error} />;
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+        <p className="whitespace-pre-wrap text-sm text-foreground">{data.fact}</p>
+      </div>
+      {data.source ? <p className="pl-6 text-xs text-muted-foreground">Source: {data.source}</p> : null}
+    </div>
+  );
+}
+
+export function ListDisplay({ data }: { data: ListData }) {
+  if (data.error) return <ErrorNote msg={data.error} />;
+  const items = data.items ?? [];
+  return (
+    <div className="space-y-2">
+      {data.title ? <p className="text-sm font-medium text-foreground">{data.title}</p> : null}
+      {items.length ? (
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+          {items.map((it, i) => (
+            <li key={i}>{it}</li>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-sm text-muted-foreground">No items.</p>
+      )}
     </div>
   );
 }

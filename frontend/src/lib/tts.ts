@@ -15,11 +15,21 @@ export function speakableText(r: AIResponse): string {
     case "example":
       return String(d.problem ?? "Example ready.");
     case "answer":
-      return String(d.answer ?? d.feedback ?? "Answer ready.");
+      return String(d.answer ?? d.reasoning ?? d.feedback ?? "Answer ready.");
     case "diagram":
       return String(d.title ?? "Diagram ready.");
     case "format_board":
       return "Board formatted.";
+    case "fact":
+      return String(d.fact ?? "Here's a fact.");
+    case "list":
+      return String(d.title ?? "Here's a list.");
+    case "numerical":
+      return String(d.problem ?? "Here's a problem.");
+    case "image":
+      return String(d.prompt ?? "Image ready.");
+    case "chemistry":
+      return String(d.name ?? d.caption ?? "Structure ready.");
     default:
       return "Response ready.";
   }
