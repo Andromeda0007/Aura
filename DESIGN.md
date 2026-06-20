@@ -47,5 +47,9 @@ Aura is a **hybrid**: brand surfaces (landing `/`, auth, public quiz, end-of-cla
 ## Absolute bans (refuse + rewrite)
 Gradient text · glassmorphism-as-default · identical icon-card grids · cream/sand body bg · side-stripe borders · per-section uppercase eyebrows / `01 02 03` markers · border+softshadow ghost cards · over-rounding (≥24px on cards) · text that overflows at any breakpoint.
 
+## Keepers (owner-loved — preserve through any redesign)
+- The **product-preview motif**: the "Photosynthesis · live" board (light-reactions, the 6CO₂+6H₂O→C₆H₁₂O₆+6O₂ equation, chlorophyll) with the floating **Aura quiz card** ("Where do the light reactions occur?" → **Thylakoid** correct + share code). Owner loves this — keep it as the signature illustration.
+- **Aurora glow** signature + **dark default**; aurora carried across app surfaces too (owner choice).
+
 ## Accessibility
 WCAG AA both themes (AAA large headings); visible focus; full keyboard nav; touch targets ≥44px; reduced-motion honored everywhere.

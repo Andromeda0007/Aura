@@ -2,25 +2,12 @@ import Link from "next/link";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { Aurora } from "@/components/ui/aurora";
 
 export default function Home() {
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
-      {/* Aurora — background treatment (NOT gradient text); brand hues, blurred. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div
-          className="absolute -top-40 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-20 blur-[120px]"
-          style={{ background: "radial-gradient(closest-side, var(--primary), transparent)" }}
-        />
-        <div
-          className="absolute -right-40 top-32 h-[34rem] w-[34rem] rounded-full opacity-[0.16] blur-[120px]"
-          style={{ background: "radial-gradient(closest-side, var(--accent), transparent)" }}
-        />
-        <div
-          className="absolute -bottom-48 -left-40 h-[32rem] w-[32rem] rounded-full opacity-[0.12] blur-[120px]"
-          style={{ background: "radial-gradient(closest-side, var(--success), transparent)" }}
-        />
-      </div>
+      <Aurora />
 
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
@@ -48,7 +35,7 @@ export default function Home() {
             Live, multi-modal teaching assistant
           </span>
 
-          <h1 className="mt-6 text-balance font-display text-6xl font-semibold leading-[0.98] tracking-[-0.025em] sm:text-7xl">
+          <h1 className="mt-6 text-balance font-display text-6xl font-semibold leading-[0.98] tracking-tight sm:text-7xl">
             Just teach.
             <br />
             <span className="text-primary">Aura</span> does the
