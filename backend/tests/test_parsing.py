@@ -103,3 +103,26 @@ def test_sanitize_preserves_subgraph_and_classdef():
     assert "subgraph" in out
     assert "classDef hot" in out
     assert "class A hot" in out
+
+
+def test_sanitize_fixes_stray_gt_after_edge_label():
+    # `|label|> B` (stray '>') and the resulting double space both break Mermaid.
+    out = AIService._sanitize_mermaid('flowchart TD\nA["x"] -->|"push(5)"|> B["y"]')
+    assert "|>" not in out
+    assert "|  " not in out  # no double space after a pipe
+
+
+def test_sanitize_collapses_double_space_after_pipe():
+    out = AIService._sanitize_mermaid('flowchart TD\nA["x"] -->|"push(5)"|  B["y"]')
+    assert "|  " not in out
+    assert "| B" in out
+
+
+def test_sanitize_quotes_unquoted_edge_label_with_parens():
+    out = AIService._sanitize_mermaid('flowchart LR\nH["Hash"] -->|hash(key)| B["Bucket"]')
+    assert '|"hash(key)"|' in out
+
+
+def test_sanitize_quotes_multiword_subgraph_title():
+    out = AIService._sanitize_mermaid("flowchart LR\nsubgraph Symmetric Key Cryptography\nA-->B\nend")
+    assert 'subgraph "Symmetric Key Cryptography"' in out

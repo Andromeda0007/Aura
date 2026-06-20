@@ -88,8 +88,8 @@ class AIService:
                     body = r.json()
                     _add_tokens((body.get("usage") or {}).get("total_tokens", 0))
                     return body["choices"][0]["message"]["content"]
-                if r.status_code == 429 and attempt < 2:
-                    await asyncio.sleep(1.0 + attempt)  # back off on rate limit, then retry
+                if (r.status_code in (400, 408, 429) or r.status_code >= 500) and attempt < 2:
+                    await asyncio.sleep(1.0 + attempt)  # transient (rate/overload); back off and retry
                     continue
                 logger.warning("ai.groq_failed", status=r.status_code, model=model)
                 return None
@@ -473,23 +473,29 @@ class AIService:
             "- lifecycles / states -> stateDiagram-v2\n"
             "- data models / entities -> erDiagram or classDiagram\n"
             "- concept overviews -> mindmap\n"
-            "Rules so it ALWAYS renders:\n"
+            "SYNTAX RULES — Mermaid is strict, follow EXACTLY so it always renders:\n"
             "- The FIRST line declares the type (e.g. `flowchart LR`).\n"
-            '- Wrap EVERY node label in double quotes for any shape: rectangle A["Input x_t"], '
-            'circle n1(("8")), rhombus d{"x>0?"}.\n'
-            "- Node IDs use ASCII letters/digits/underscore only.\n"
-            "- For TREES and GRAPHS: use CIRCLE nodes for vertices, e.g. n1((\"8\")) --> n2((\"3\")); "
-            'put each vertex VALUE/number inside the circle; put edge weights/numbers as edge labels, '
-            'e.g. a((\"A\")) ---|\"5\"| b((\"B\")) (use --- for undirected, --> for directed).\n'
-            "- Define each node EXACTLY ONCE with its COMPLETE label; never redefine a node ID later.\n"
-            "- For TRAVERSALS (BFS/DFS/inorder/...): draw the actual tree/graph and encode the VISIT ORDER "
-            'INSIDE each node\'s single label, e.g. n4(("#1=1")) (1st-visited, value 1) and n1(("#4=8")). '
-            "Do NOT add extra nodes for the order or list it as text.\n"
-            "- Group related nodes in `subgraph`s; for emphasis add a couple of `classDef` styles and apply "
-            "them with `class`. classDef styles are comma-separated with NO spaces, e.g. "
-            "`classDef hot fill:#f96,stroke:#333,stroke-width:2px`.\n"
-            "- Aim for 8-20 nodes and show the REAL structure (loops, branches, layers, children) — never a trivial chain.\n"
+            "- Node IDs: ASCII letters/digits/underscore only. Define each node ONCE with its full label.\n"
+            '- Wrap EVERY node label in double quotes, any shape: A["Input"], circle n1(("8")), rhombus d{"x>0?"}.\n'
+            '- Edges: `A --> B` (arrow) or `A --- B` (line). A LABELLED edge is `A -->|"label"| B` — the label '
+            "sits between TWO pipes. NEVER write `|>` (no '>' right after the closing pipe).\n"
+            "- Use ONLY these arrows: `-->`, `---`, `-.->`, `==>`. NEVER `->>` or `-->>` (those are sequence-diagram syntax).\n"
+            '- One shape per node: A["x"] OR A(("x")) OR A{"x"} — never combine like A>("x").\n'
+            '- Subgraphs: `subgraph "Title"` on its own line, then nodes, then `end`. NEVER put [ ] after subgraph.\n'
+            "- Line breaks inside a label use `<br/>`, never a backslash-n.\n"
+            "- Optional emphasis: `classDef hot fill:#f96,stroke:#333` (comma-separated, NO spaces) then `class A,B hot`.\n"
+            "- 8-20 nodes; show real structure (loops, branches, layers, children), not a trivial chain.\n"
+            '- TREES/GRAPHS: circle nodes with the value inside, n1(("8")) --> n2(("3")); edge weights as labels '
+            'a(("A")) -->|"5"| b(("B")). TRAVERSALS: encode visit order inside each node, e.g. n4(("#1=1")).\n'
             "- No prose, comments, or markdown fences outside the diagram.\n"
+            "EXAMPLE of correct syntax (copy this structure):\n"
+            "flowchart LR\n"
+            '  subgraph "Encryption"\n'
+            '    P["Plaintext"] -->|"key K"| E["Encrypt"]\n'
+            '    E --> C["Ciphertext"]\n'
+            "  end\n"
+            "  classDef hot fill:#f96,stroke:#333\n"
+            "  class E hot\n"
             'Respond with ONLY JSON: {"mermaid": str, "title": str, "kind": str} '
             "where kind is one of: flowchart, sequence, state, class, er, mindmap."
         )
@@ -557,6 +563,41 @@ class AIService:
             if re.search(r"""[\[\]{}<>:;#&|/\\'"]""", inner):
                 return f'(("{inner.replace(chr(34), chr(39))}"))'
             return m.group(0)
+
+        # Fix the very common LLM mistake `A -->|label|> B` (a stray '>' after the
+        # edge label's closing pipe). Consume trailing spaces so we leave exactly
+        # one space — Mermaid rejects two-plus spaces after the pipe.
+        s = re.sub(r"\|\s*>\s*", "| ", s)
+
+        def quote_edge(m: "re.Match[str]") -> str:
+            inner = m.group(1).strip()
+            if not inner or (inner.startswith('"') and inner.endswith('"')):
+                return m.group(0)
+            if re.search(r"""[()\[\]{}<>:;#&/\\]""", inner):
+                return f'|"{inner.replace(chr(34), chr(39))}"|'
+            return m.group(0)
+
+        # Quote edge labels |..| that contain special chars, e.g. |hash(key)| -> |"hash(key)"|.
+        s = re.sub(r"\|([^|\n]+)\|", quote_edge, s)
+        # Mermaid rejects 2+ spaces right after an edge-label pipe -> collapse to one.
+        s = re.sub(r"\|[ \t]{2,}", "| ", s)
+        # Collapse malformed multi-arrowheads (sequence-style `-.->>`/`-->>` in a flowchart).
+        s = re.sub(r"([-.=])>>+", r"\1>", s)
+        # Fix node-shape mashups like `b1>("Bucket")` -> `b1("Bucket")`.
+        s = re.sub(r"(\w)>\(", r"\1(", s)
+        # Literal "\n" the model puts inside labels -> a real Mermaid line break.
+        s = s.replace("\\n", "<br/>")
+
+        def fix_subgraph(m: "re.Match[str]") -> str:
+            head, title = m.group(1), m.group(2).strip().rstrip("[").strip()
+            if not title:
+                return head.rstrip()  # bare `subgraph`
+            if title.startswith('"') or "[" in title:
+                return m.group(0)  # already quoted or `id["Title"]` form — leave it
+            return f'{head}"{title}"' if " " in title else f"{head}{title}"
+
+        # Quote multi-word subgraph titles; strip a stray trailing '[' (bracket form).
+        s = re.sub(r"(?m)^(\s*subgraph\s+)(.+?)\s*$", fix_subgraph, s)
 
         s = re.sub(r"(\[)([^\[\]\n]*?)(\])", quote_label, s)  # rectangle [..]
         s = re.sub(r"(\{)([^{}\n]*?)(\})", quote_label, s)  # rhombus {..}
