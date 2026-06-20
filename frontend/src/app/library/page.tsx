@@ -110,7 +110,7 @@ export default function LibraryPage() {
                     <div className="border-t border-border p-4">
                       <ResponseView response={{ type: it.type as AIResponse["type"], data: it.data }} />
                       <Link
-                        href={`/classroom/${it.sessionId}`}
+                        href={`/session/${it.sessionId}`}
                         className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
                       >
                         Open session →
