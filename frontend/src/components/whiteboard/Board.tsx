@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Tldraw, type Editor } from "tldraw";
 import "tldraw/tldraw.css";
 
+import { BOARD_DND_MIME, type BoardDragPayload } from "@/lib/board-content";
 import { getSocket } from "@/lib/socket";
 
 const SNAPSHOT_INTERVAL_MS = 10_000;
@@ -15,8 +16,10 @@ const SNAPSHOT_INTERVAL_MS = 10_000;
  *  Images/PDFs can be pasted or dragged straight onto the canvas (tldraw built-in). */
 export function Board({ sessionId, recording }: { sessionId: string; recording: boolean }) {
   const editorRef = useRef<Editor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const [grid, setGrid] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
 
   function applyTheme(editor: Editor | null) {
     editor?.user.updateUserPreferences({
@@ -46,6 +49,56 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
     const id = setInterval(tick, SNAPSHOT_INTERVAL_MS);
     return () => clearInterval(id);
   }, [recording, sessionId]);
+
+  // Accept Aura cards dragged from the AI panel. Native capture-phase listeners
+  // run before tldraw's own drop handling, so we fully own these drops.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const isOurs = (dt: DataTransfer | null) => !!dt && Array.from(dt.types).includes(BOARD_DND_MIME);
+
+    const onDragOver = (e: DragEvent) => {
+      if (!isOurs(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      setDropActive(true);
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!isOurs(e.dataTransfer)) return;
+      if (e.relatedTarget && el.contains(e.relatedTarget as Node)) return; // still inside
+      setDropActive(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!isOurs(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDropActive(false);
+      const editor = editorRef.current;
+      if (!editor || !e.dataTransfer) return;
+      let payload: BoardDragPayload;
+      try {
+        payload = JSON.parse(e.dataTransfer.getData(BOARD_DND_MIME)) as BoardDragPayload;
+      } catch {
+        return;
+      }
+      const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+      if (payload.kind === "svg" && payload.svg) {
+        void editor.putExternalContent({ type: "svg-text", text: payload.svg, point });
+      } else if (payload.text) {
+        void editor.putExternalContent({ type: "text", text: payload.text, point });
+      }
+    };
+
+    el.addEventListener("dragover", onDragOver, true);
+    el.addEventListener("dragleave", onDragLeave, true);
+    el.addEventListener("drop", onDrop, true);
+    return () => {
+      el.removeEventListener("dragover", onDragOver, true);
+      el.removeEventListener("dragleave", onDragLeave, true);
+      el.removeEventListener("drop", onDrop, true);
+    };
+  }, []);
 
   function toggleGrid() {
     const editor = editorRef.current;
@@ -82,7 +135,7 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
   }
 
   return (
-    <div className="absolute inset-0">
+    <div ref={containerRef} className="absolute inset-0">
       <Tldraw
         onMount={(editor) => {
           editorRef.current = editor;
@@ -90,6 +143,14 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           setGrid(editor.getInstanceState().isGridMode);
         }}
       />
+      {/* Drop highlight while an Aura card is dragged over the board */}
+      {dropActive && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center rounded-2xl bg-primary/5 ring-2 ring-inset ring-primary/60">
+          <span className="mt-4 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">
+            Drop to add to the board
+          </span>
+        </div>
+      )}
       {/* Board superpowers toolbar */}
       <div className="pointer-events-auto absolute right-3 top-3 z-10 flex gap-1 rounded-xl border border-border bg-card/90 p-1 shadow-sm backdrop-blur">
         <button

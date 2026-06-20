@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, Copy, Download, History, Maximize2, Mic, Minimize2, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Radio, ScrollText, Send, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Download, Maximize2, Mic, Minimize2, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Radio, ScrollText, Send, Trophy } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -54,29 +53,25 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const [tokens, setTokens] = useState(0);
   const [showTranscript, setShowTranscript] = useState(true);
   const [showAi, setShowAi] = useState(true);
-  const [showShare, setShowShare] = useState(false);
   const [showLiveQuiz, setShowLiveQuiz] = useState(false);
   const [teachMode, setTeachMode] = useState(false);
   const [listening, setListening] = useState(false);
   const connectedOnce = useRef(false);
   const pttRef = useRef<Recognition | null>(null);
 
-  // Every time a session opens: reveal both side panels (transcript + Aura),
-  // then smoothly tuck them away after a beat so the teacher notices the panels
-  // (and their toggles) exist. They stay hidden until manually re-opened.
+  // On session open: keep the Aura panel on; briefly reveal the transcript then
+  // smoothly tuck it away after a beat so the teacher notices it (and its toggle)
+  // exists. Aura stays on until manually toggled off.
   useEffect(() => {
     setShowTranscript(true);
     setShowAi(true);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const tuck = () => {
-      setShowTranscript(false);
-      setShowAi(false);
-    };
+    const tuckTranscript = () => setShowTranscript(false);
     if (reduce) {
-      tuck();
+      tuckTranscript();
       return;
     }
-    const t = setTimeout(tuck, 1100);
+    const t = setTimeout(tuckTranscript, 1100);
     return () => clearTimeout(t);
   }, [sessionId]);
 
@@ -312,23 +307,11 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           >
             <Radio className="h-4 w-4" /> {isRecording ? "Recording" : "Record"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowShare(true)}>
-            <Users className="h-4 w-4" /> Invite students
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowLiveQuiz(true)}>
             <Trophy className="h-4 w-4" /> Live quiz
           </Button>
           <Button variant="ghost" size="icon" aria-label="Export Markdown" title="Export Markdown" onClick={exportSession}>
             <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Replay session"
-            title="Replay session"
-            onClick={() => router.push(`/replay/${sessionId}`)}
-          >
-            <History className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -360,10 +343,10 @@ export function Workspace({ sessionId }: { sessionId: string }) {
             ? ""
             : showTranscript
               ? showAi
-                ? "lg:grid-cols-[20rem_1fr_22rem]"
+                ? "lg:grid-cols-[20rem_1fr_28rem]"
                 : "lg:grid-cols-[20rem_1fr_0rem]"
               : showAi
-                ? "lg:grid-cols-[0rem_1fr_22rem]"
+                ? "lg:grid-cols-[0rem_1fr_28rem]"
                 : "lg:grid-cols-[0rem_1fr_0rem]"
         }`}
       >
@@ -420,71 +403,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         </form>
       </footer>
 
-      {showShare && currentSession?.join_code && (
-        <ShareModal joinCode={currentSession.join_code} onClose={() => setShowShare(false)} />
-      )}
-
       {showLiveQuiz && <LiveQuizHost onClose={() => setShowLiveQuiz(false)} />}
-    </div>
-  );
-}
-
-function ShareModal({ joinCode, onClose }: { joinCode: string; onClose: () => void }) {
-  const liveUrl =
-    typeof window !== "undefined" ? `${window.location.origin}/live/${joinCode}` : "";
-
-  function copy(text: string) {
-    navigator.clipboard?.writeText(text).then(
-      () => toast.success("Copied"),
-      () => toast.error("Could not copy"),
-    );
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Close"
-          className="absolute right-3 top-3"
-          onClick={onClose}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-        <h2 className="font-display text-xl font-semibold tracking-tight">Invite students</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Students scan or enter the code to follow your board live.
-        </p>
-
-        <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-3">
-          <QRCodeSVG value={liveUrl} size={160} />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => copy(joinCode)}
-          className="mx-auto mt-4 flex items-center gap-2 rounded-xl border border-border px-4 py-2 font-mono text-2xl font-semibold tracking-[0.2em] transition-colors hover:bg-muted"
-        >
-          {joinCode}
-          <Copy className="h-4 w-4 text-muted-foreground" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => copy(liveUrl)}
-          className="mt-3 w-full truncate rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/70"
-          title={liveUrl}
-        >
-          {liveUrl}
-        </button>
-      </div>
     </div>
   );
 }
