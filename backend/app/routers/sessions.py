@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
@@ -129,7 +130,12 @@ def session_history(
     ).all()
     return {
         "transcripts": [
-            {"id": str(t.id), "text": t.text, "timestamp": t.timestamp.isoformat() if t.timestamp else None}
+            {
+                "id": str(t.id),
+                "text": t.text,
+                "starred": t.starred,
+                "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+            }
             for t in transcripts
         ],
         "commands": [
@@ -143,6 +149,28 @@ def session_history(
             for c in commands
         ],
     }
+
+
+class StarUpdate(BaseModel):
+    starred: bool
+
+
+@router.patch("/{session_id}/transcripts/{transcript_id}/star")
+def star_transcript(
+    session_id: uuid.UUID,
+    transcript_id: uuid.UUID,
+    body: StarUpdate,
+    db: DBSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+) -> dict:
+    """Star/unstar a transcript line ('star this moment')."""
+    _owned_session(session_id, db, teacher)
+    t = db.get(Transcript, transcript_id)
+    if t is None or t.session_id != session_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transcript not found")
+    t.starred = body.starred
+    db.commit()
+    return {"id": str(t.id), "starred": t.starred}
 
 
 @router.post("/{session_id}/end", response_model=SessionOut)
@@ -211,6 +239,14 @@ def session_report(
         for code, data, n, avg in quiz_rows
     ]
 
+    highlights = list(
+        db.scalars(
+            select(Transcript.text)
+            .where(Transcript.session_id == sess.id, Transcript.starred.is_(True))
+            .order_by(Transcript.timestamp)
+        ).all()
+    )
+
     commands = db.scalar(
         select(func.count()).select_from(Command).where(Command.session_id == sess.id)
     )
@@ -229,6 +265,7 @@ def session_report(
         "summary": summary_data.get("summary", ""),
         "keyPoints": summary_data.get("keyPoints", []),
         "keyConcepts": key_concepts,
+        "highlights": highlights,
         "quizzes": quizzes,
         "stats": {"commands": commands or 0, "transcripts": transcripts or 0},
     }

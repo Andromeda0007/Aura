@@ -21,5 +21,6 @@ class Transcript(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0.9, nullable=False)
     is_processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    starred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

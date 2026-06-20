@@ -78,6 +78,10 @@ export const sessionApi = {
   exportMarkdown: (id: string) =>
     api.get(`/export/${id}`, { responseType: "blob" }).then((r) => r.data as Blob),
   report: (id: string) => api.get<SessionReport>(`/sessions/${id}/report`).then((r) => r.data),
+  starTranscript: (sessionId: string, transcriptId: string, starred: boolean) =>
+    api
+      .patch(`/sessions/${sessionId}/transcripts/${transcriptId}/star`, { starred })
+      .then((r) => r.data),
 };
 
 export interface SessionReport {
@@ -88,6 +92,7 @@ export interface SessionReport {
   summary: string;
   keyPoints: string[];
   keyConcepts: string[];
+  highlights: string[];
   quizzes: { shareCode: string; questionCount: number; attempts: number; avgPct: number }[];
   stats: { commands: number; transcripts: number };
 }

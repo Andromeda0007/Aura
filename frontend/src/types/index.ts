@@ -57,6 +57,7 @@ export interface TranscriptEntry {
   id: string;
   text: string;
   interim?: boolean;
+  starred?: boolean;
   timestamp: string;
 }
 

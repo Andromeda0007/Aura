@@ -74,6 +74,19 @@ export function ReportView({ sessionId }: { sessionId: string }) {
           </section>
         )}
 
+        {report.highlights.length > 0 && (
+          <section className="mt-8">
+            <h3 className="font-display text-lg font-semibold">Starred moments</h3>
+            <ul className="mt-2 space-y-2">
+              {report.highlights.map((h, i) => (
+                <li key={i} className="rounded-xl border-l-2 border-amber-400 bg-muted px-3 py-2 text-sm">
+                  {h}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {report.keyConcepts.length > 0 && (
           <section className="mt-8">
             <h3 className="font-display text-lg font-semibold">Concepts covered</h3>

@@ -14,6 +14,7 @@ interface SessionState {
   setRecording: (v: boolean) => void;
   addTranscript: (t: TranscriptEntry) => void;
   setTranscripts: (t: TranscriptEntry[]) => void;
+  setStar: (id: string, starred: boolean) => void;
   addResponse: (r: AIResponse) => void;
   setCompression: (c: CompressionStatus | null) => void;
   clear: () => void;
@@ -37,6 +38,8 @@ export const useSessionStore = create<SessionState>((set) => ({
       return { transcripts: [...list, t] };
     }),
   setTranscripts: (transcripts) => set({ transcripts }),
+  setStar: (id, starred) =>
+    set((s) => ({ transcripts: s.transcripts.map((t) => (t.id === id ? { ...t, starred } : t)) })),
   addResponse: (r) => set((s) => ({ latestResponse: r, aiHistory: [r, ...s.aiHistory] })),
   setCompression: (compression) => set({ compression }),
   clear: () =>
