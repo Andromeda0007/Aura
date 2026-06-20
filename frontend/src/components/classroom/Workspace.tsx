@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Download, FileText, History, Mic, PanelLeft, PanelLeftClose, Radio, ScrollText, Send, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, Copy, Download, FileText, History, Maximize2, Mic, Minimize2, PanelLeft, PanelLeftClose, Radio, ScrollText, Send, Trophy, Users, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -55,6 +55,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const [showTranscript, setShowTranscript] = useState(true);
   const [showShare, setShowShare] = useState(false);
   const [showLiveQuiz, setShowLiveQuiz] = useState(false);
+  const [teachMode, setTeachMode] = useState(false);
   const [listening, setListening] = useState(false);
   const connectedOnce = useRef(false);
   const pttRef = useRef<Recognition | null>(null);
@@ -126,6 +127,17 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, sessionId]);
+
+  async function toggleTeachMode() {
+    const next = !teachMode;
+    setTeachMode(next);
+    try {
+      if (next && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else if (!next && document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      /* fullscreen can be blocked; teach layout still applies */
+    }
+  }
 
   async function exportSession() {
     try {
@@ -284,18 +296,31 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           >
             <ScrollText className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={teachMode ? "Exit teach mode" : "Teach mode"}
+            title={teachMode ? "Exit teach mode" : "Teach mode (fullscreen)"}
+            onClick={toggleTeachMode}
+          >
+            {teachMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
           <ThemeToggle />
           <Button variant="outline" size="sm" onClick={endSession}>End</Button>
         </div>
       </header>
 
-      {/* 3-panel workspace */}
+      {/* 3-panel workspace (teach mode = board only) */}
       <main
         className={`grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 ${
-          showTranscript ? "lg:grid-cols-[20rem_1fr_22rem]" : "lg:grid-cols-[1fr_22rem]"
+          teachMode
+            ? ""
+            : showTranscript
+              ? "lg:grid-cols-[20rem_1fr_22rem]"
+              : "lg:grid-cols-[1fr_22rem]"
         }`}
       >
-        {showTranscript && (
+        {!teachMode && showTranscript && (
           <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
             <TranscriptPanel />
           </section>
@@ -305,9 +330,11 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           <Board sessionId={sessionId} recording={isRecording} />
         </section>
 
-        <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
-          <AiPanel />
-        </section>
+        {!teachMode && (
+          <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
+            <AiPanel />
+          </section>
+        )}
       </main>
 
       {/* Footer command box */}

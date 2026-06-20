@@ -13,10 +13,22 @@ const fraunces = Fraunces({
   axes: ["opsz"],
 });
 
+const DESCRIPTION =
+  "A real-time, multi-modal teaching assistant: it listens, watches your board, and turns your live lesson into quizzes, summaries, explanations, and diagrams on command.";
+
 export const metadata: Metadata = {
   title: "Aura — Teaching Assistant",
-  description:
-    "A real-time, multi-modal teaching assistant: it listens, watches your board, and turns your live lesson into quizzes, summaries, explanations, and diagrams on command.",
+  description: DESCRIPTION,
+  applicationName: "Aura",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Aura", statusBarStyle: "black-translucent" },
+  openGraph: {
+    title: "Aura — Teaching Assistant",
+    description: DESCRIPTION,
+    siteName: "Aura",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image", title: "Aura — Teaching Assistant", description: DESCRIPTION },
 };
 
 export default function RootLayout({
