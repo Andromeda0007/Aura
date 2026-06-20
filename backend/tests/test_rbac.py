@@ -60,24 +60,28 @@ def test_student_is_read_only():
 
 def test_assignment_validation():
     ah = auth(admin_token())
-    batch = make_batch(ah)
-    cs = make_department(ah, batch["id"], "CS")
-    it = make_department(ah, batch["id"], "IT")
-    cs_sems = semesters_of(ah, cs["id"])
-    it_sems = semesters_of(ah, it["id"])
-    base = {"email": f"x_{uuid.uuid4().hex[:8]}@aura.app", "full_name": "X", "password": _PW}
+    b1 = make_batch(ah, 2022, 2026)
+    b2 = make_batch(ah, 2023, 2027)
+    cs1 = semesters_of(ah, make_department(ah, b1["id"], "CS")["id"])
+    cs2 = semesters_of(ah, make_department(ah, b2["id"], "CS")["id"])
 
     # student must have exactly one semester
-    assert client.post("/admin/users", json={**base, "role": "student", "semester_ids": []}, headers=ah).status_code == 400
-    # teacher's semesters must share one department
     assert (
         client.post(
             "/admin/users",
-            json={**base, "role": "teacher", "semester_ids": [cs_sems[0]["id"], it_sems[0]["id"]]},
+            json={"email": f"s_{uuid.uuid4().hex[:8]}@aura.app", "full_name": "S", "password": _PW, "role": "student", "semester_ids": []},
             headers=ah,
         ).status_code
         == 400
     )
+    # a teacher CAN span semesters across different batches
+    r = client.post(
+        "/admin/users",
+        json={"email": f"t_{uuid.uuid4().hex[:8]}@aura.app", "full_name": "T", "password": _PW, "role": "teacher", "semester_ids": [cs1[4]["id"], cs2[2]["id"]]},
+        headers=ah,
+    )
+    assert r.status_code == 201, r.text
+    assert len(r.json()["semesterIds"]) == 2
 
 
 def test_non_admin_cannot_use_admin_api():

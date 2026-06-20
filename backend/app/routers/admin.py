@@ -50,22 +50,11 @@ def _active_admin_count(db: DBSession) -> int:
 
 
 def _validate_assignment(db: DBSession, role: UserRole, semester_ids: list[uuid.UUID]) -> None:
-    """Student: exactly one semester. Teacher: ≥1, all in the SAME department."""
+    """Student: exactly one semester. Teacher: ≥1 (any semesters, across batches)."""
     if role == UserRole.STUDENT and len(semester_ids) != 1:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A student must be assigned exactly one semester")
-    if role == UserRole.TEACHER:
-        if not semester_ids:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "A teacher needs at least one semester")
-        depts = set()
-        for sid in semester_ids:
-            sem = db.get(Semester, sid)
-            if sem is None:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, f"Semester {sid} not found")
-            depts.add(sem.department_id)
-        if len(depts) > 1:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "All of a teacher's semesters must be in one department"
-            )
+    if role == UserRole.TEACHER and not semester_ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A teacher needs at least one semester")
 
 
 def _set_memberships(db: DBSession, user: User, semester_ids: list[uuid.UUID]) -> None:
@@ -114,6 +103,37 @@ def create_user(
     db.commit()
     db.refresh(user)
     return _user_dict(db, user)
+
+
+@router.get("/tree")
+def assignment_tree(db: DBSession = Depends(get_db), _: User = Depends(require_admin)) -> list[dict]:
+    """Full Batch -> Department -> Semester tree, for the user-assignment picker."""
+    batches = list(db.scalars(select(Batch).order_by(Batch.start_year.desc())).all())
+    out = []
+    for b in batches:
+        depts = list(
+            db.scalars(select(Department).where(Department.batch_id == b.id).order_by(Department.name)).all()
+        )
+        out.append(
+            {
+                "id": str(b.id),
+                "label": f"{b.start_year}-{b.end_year}",
+                "departments": [
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "semesters": [
+                            {"id": str(s.id), "number": s.number}
+                            for s in db.scalars(
+                                select(Semester).where(Semester.department_id == d.id).order_by(Semester.number)
+                            ).all()
+                        ],
+                    }
+                    for d in depts
+                ],
+            }
+        )
+    return out
 
 
 @router.get("/users")

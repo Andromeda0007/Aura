@@ -81,7 +81,14 @@ export interface AdminStats {
   totals: { batches: number; courses: number; sessions: number; quizzes: number; tokensUsed: number };
 }
 
+export interface AdminTreeBatch {
+  id: string;
+  label: string;
+  departments: { id: string; name: string; semesters: { id: string; number: number }[] }[];
+}
+
 export const adminApi = {
+  tree: () => api.get<AdminTreeBatch[]>("/admin/tree").then((r) => r.data),
   listUsers: () => api.get<AdminUser[]>("/admin/users").then((r) => r.data),
   createUser: (body: {
     email: string;
