@@ -196,16 +196,59 @@ class AIService:
 
     async def generate_diagram(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (
-            "You are an expert teacher. Create a Mermaid diagram (flowchart/sequence/graph) that "
-            "illustrates the requested concept from the lecture. Use valid Mermaid syntax. "
+            "You are an expert teacher. Create a Mermaid diagram that illustrates the requested "
+            "concept from the lecture. STRICT rules so it always renders:\n"
+            "- Start with `flowchart TD` (top-down).\n"
+            '- Wrap EVERY node label in double quotes, e.g. A["Light reactions"] --> B["Calvin cycle"].\n'
+            "- Use only ASCII letters/digits/underscore for node IDs.\n"
+            "- No parentheses, brackets, prose, or markdown fences outside the diagram.\n"
+            "- Keep it to 4-10 nodes.\n"
             'Respond with ONLY JSON: {"mermaid": str, "title": str}.'
         )
         data = await self._generate_json(
             "smart", self._with_language(system, language), f"Request: {command}\n\nContext:\n{context}"
         )
         if "mermaid" in data and isinstance(data["mermaid"], str):
-            data["mermaid"] = data["mermaid"].strip().removeprefix("```mermaid").removeprefix("```").removesuffix("```").strip()
+            data["mermaid"] = self._sanitize_mermaid(data["mermaid"])
         return data
+
+    @staticmethod
+    def _sanitize_mermaid(src: str) -> str:
+        """Best-effort cleanup of LLM Mermaid: strip fences/prose, canonicalize the
+        header, and auto-quote rectangle/rhombus labels that contain chars which
+        commonly break the parser. The frontend still validates before rendering."""
+        import re
+
+        s = src.strip()
+        s = re.sub(r"^```(?:mermaid)?\s*", "", s)
+        s = re.sub(r"\s*```$", "", s).strip()
+
+        headers = (
+            "flowchart", "graph", "sequencediagram", "classdiagram", "statediagram",
+            "erdiagram", "mindmap", "gantt", "pie", "journey",
+        )
+        lines = s.splitlines()
+        start = next(
+            (i for i, ln in enumerate(lines) if ln.strip().lower().startswith(headers)), 0
+        )
+        s = "\n".join(lines[start:]).strip()
+        s = re.sub(r"^graph\b", "flowchart", s)  # alias -> canonical
+        if not s.lower().startswith(("flowchart", "sequencediagram", "classdiagram",
+                                     "statediagram", "erdiagram", "mindmap", "gantt",
+                                     "pie", "journey")):
+            s = "flowchart TD\n" + s
+
+        def quote_label(m: "re.Match[str]") -> str:
+            open_b, inner, close_b = m.group(1), m.group(2).strip(), m.group(3)
+            if not inner or (inner.startswith('"') and inner.endswith('"')):
+                return m.group(0)
+            if re.search(r"""[()\[\]{}<>:;#&|/\\'"]""", inner):
+                return f'{open_b}"{inner.replace(chr(34), chr(39))}"{close_b}'
+            return m.group(0)
+
+        s = re.sub(r"(\[)([^\[\]\n]*?)(\])", quote_label, s)  # rectangle [..]
+        s = re.sub(r"(\{)([^{}\n]*?)(\})", quote_label, s)  # rhombus {..}
+        return s.strip()
 
     async def answer_question(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (

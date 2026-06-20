@@ -3,12 +3,19 @@
 import { Sparkles, Volume2 } from "lucide-react";
 
 import { ResponseView } from "@/components/ai-panel/ResponseView";
+import { getSocket } from "@/lib/socket";
 import { speak, speakableText } from "@/lib/tts";
 import { useSessionStore } from "@/store/sessionStore";
 
 export function AiPanel() {
   const latest = useSessionStore((s) => s.latestResponse);
   const history = useSessionStore((s) => s.aiHistory);
+  const sessionId = useSessionStore((s) => s.currentSession?.id);
+
+  function regenerate(command?: string) {
+    if (!command) return;
+    getSocket()?.emit("voice_command", { sessionId, command: `hey aura ${command}` });
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -46,7 +53,7 @@ export function AiPanel() {
                   </button>
                 </div>
                 <div className="mt-2">
-                  <ResponseView response={r} />
+                  <ResponseView response={r} onRegenerate={() => regenerate(r.command)} />
                 </div>
               </div>
             ))}

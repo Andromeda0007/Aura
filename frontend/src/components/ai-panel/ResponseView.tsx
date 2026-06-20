@@ -12,7 +12,13 @@ import {
 import type { AIResponse } from "@/types";
 
 /** Renders an AI response by its type. Shared by the workspace AI panel and the library. */
-export function ResponseView({ response }: { response: AIResponse }) {
+export function ResponseView({
+  response,
+  onRegenerate,
+}: {
+  response: AIResponse;
+  onRegenerate?: () => void;
+}) {
   const d = response.data as never;
   switch (response.type) {
     case "quiz":
@@ -24,7 +30,7 @@ export function ResponseView({ response }: { response: AIResponse }) {
     case "example":
       return <ExampleDisplay data={d} />;
     case "diagram":
-      return <DiagramDisplay data={d} />;
+      return <DiagramDisplay data={d} onRegenerate={onRegenerate} />;
     case "format_board":
       return <FormatBoardDisplay data={d} />;
     default:
