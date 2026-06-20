@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from app.core.logging import get_logger
-from app.websocket.connection import active_connections, sio
+from app.websocket.connection import active_connections, live_room, sio
 from app.workers.llm_worker import process_command
 from app.workers.stt_worker import save_transcript_text, transcribe_audio
 from app.workers.vision_worker import process_snapshot
@@ -14,8 +14,12 @@ logger = get_logger("aura.ws.handlers")
 
 
 def _session_for(sid: str) -> str | None:
+    """Session id for a TEACHER connection only — these handlers mutate state,
+    so read-only student viewers must never reach them."""
     info = active_connections.get(sid)
-    return info["session_id"] if info else None
+    if info and info.get("role") == "teacher":
+        return info["session_id"]
+    return None
 
 
 @sio.on("transcript_text")
@@ -57,6 +61,9 @@ async def handle_canvas_snapshot(sid: str, data: dict) -> None:
         return
     image = (data or {}).get("imageData") or (data or {}).get("image")
     if image:
+        # Mirror the board to read-only student viewers (live room only — the
+        # teacher already has the canvas locally).
+        await sio.emit("board_update", {"image": image}, room=live_room(session_id))
         asyncio.create_task(
             process_snapshot(
                 session_id,

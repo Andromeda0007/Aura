@@ -19,6 +19,7 @@ class SessionOut(BaseModel):
     id: uuid.UUID
     teacher_id: uuid.UUID
     subject: str
+    join_code: str
     status: SessionStatus
     active_buffer_tokens: int
     start_time: datetime

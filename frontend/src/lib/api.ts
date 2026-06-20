@@ -133,3 +133,14 @@ export const quizApi = {
   results: (id: string) => api.get<QuizResults>(`/quizzes/${id}/results`).then((r) => r.data),
 };
 
+export interface LiveSession {
+  sessionId: string;
+  subject: string;
+  status: string;
+  joinCode: string;
+}
+
+export const liveApi = {
+  resolve: (code: string) => api.get<LiveSession>(`/live/${code}`).then((r) => r.data),
+};
+

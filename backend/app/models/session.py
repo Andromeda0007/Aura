@@ -1,6 +1,7 @@
 """Lecture Session model."""
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import datetime
 
@@ -11,6 +12,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.models.enums import SessionStatus
 
+# No ambiguous chars (0/O, 1/I) — students read this off the board and type it.
+_JOIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def generate_join_code() -> str:
+    return "".join(secrets.choice(_JOIN_ALPHABET) for _ in range(6))
+
 
 class Session(Base):
     __tablename__ = "sessions"
@@ -20,6 +28,10 @@ class Session(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    # Short public code students type/scan to join the live session (read-only).
+    join_code: Mapped[str] = mapped_column(
+        String(12), unique=True, index=True, default=generate_join_code, nullable=False
+    )
     status: Mapped[SessionStatus] = mapped_column(
         SAEnum(SessionStatus, name="session_status"), default=SessionStatus.ACTIVE, nullable=False
     )

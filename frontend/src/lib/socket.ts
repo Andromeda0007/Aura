@@ -19,6 +19,20 @@ export function connectSocket(sessionId: string, token: string): Socket {
   return socket;
 }
 
+/** Connect as a read-only student viewer using a session join code (no JWT). */
+export function connectStudentSocket(joinCode: string): Socket {
+  if (socket?.connected) socket.disconnect();
+  socket = io(WS_URL, {
+    transports: ["websocket"],
+    auth: { role: "student", joinCode },
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+  });
+  return socket;
+}
+
 export function getSocket(): Socket | null {
   return socket;
 }

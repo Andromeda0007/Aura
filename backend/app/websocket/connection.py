@@ -14,6 +14,8 @@ from app.core.config import settings
 from app.core.database import session_scope
 from app.core.logging import get_logger
 from app.core.security import decode_token
+from sqlalchemy import select
+
 from app.models.session import Session
 
 logger = get_logger("aura.ws")
@@ -26,8 +28,13 @@ sio = socketio.AsyncServer(
     engineio_logger=False,
 )
 
-# sid -> {"user_id": str, "session_id": str}
+# sid -> {"user_id": str, "session_id": str, "role": "teacher"|"student"}
 active_connections: dict[str, dict[str, str]] = {}
+
+
+def live_room(session_id: str) -> str:
+    """Room for read-only student viewers of a session's board mirror."""
+    return f"live:{session_id}"
 
 
 def _extract_session_id(environ: dict) -> str | None:
@@ -36,12 +43,40 @@ def _extract_session_id(environ: dict) -> str | None:
     return vals[0] if vals else None
 
 
+async def _connect_student(sid: str, auth: dict) -> bool:
+    """Read-only student viewer: resolve a join code, join the session +
+    live rooms to receive transcript, command, and board-mirror events."""
+    code = (auth or {}).get("joinCode") or (auth or {}).get("join_code")
+    if not code:
+        logger.warning("ws.connect.student.no_code", sid=sid)
+        return False
+    with session_scope() as db:
+        sess = db.scalar(select(Session).where(Session.join_code == str(code).upper()))
+        if sess is None:
+            logger.warning("ws.connect.student.bad_code", sid=sid)
+            return False
+        session_id = str(sess.id)
+        subject = sess.subject
+
+    await sio.enter_room(sid, session_id)
+    await sio.enter_room(sid, live_room(session_id))
+    active_connections[sid] = {"user_id": "", "session_id": session_id, "role": "student"}
+    logger.info("ws.connect.student", sid=sid, session_id=session_id)
+    await sio.emit(
+        "connected", {"sessionId": session_id, "subject": subject, "role": "student"}, to=sid
+    )
+    return True
+
+
 @sio.event
 async def connect(sid: str, environ: dict, auth: dict | None) -> bool:
-    """Authenticate (JWT access token + owned session_id) then join the session room."""
+    """Teacher: JWT + owned session_id. Student: join code, read-only."""
     token = (auth or {}).get("token")
+    if not token:
+        return await _connect_student(sid, auth or {})
+
     session_id = _extract_session_id(environ)
-    if not token or not session_id:
+    if not session_id:
         logger.warning("ws.connect.missing_credentials", sid=sid)
         return False
 
@@ -65,7 +100,11 @@ async def connect(sid: str, environ: dict, auth: dict | None) -> bool:
             return False
 
     await sio.enter_room(sid, session_id)
-    active_connections[sid] = {"user_id": str(user_id), "session_id": session_id}
+    active_connections[sid] = {
+        "user_id": str(user_id),
+        "session_id": session_id,
+        "role": "teacher",
+    }
     logger.info("ws.connect", sid=sid, session_id=session_id, user_id=str(user_id))
     await sio.emit("connected", {"sessionId": session_id}, to=sid)
     return True
@@ -76,6 +115,8 @@ async def disconnect(sid: str) -> None:
     info = active_connections.pop(sid, None)
     if info:
         await sio.leave_room(sid, info["session_id"])
+        if info.get("role") == "student":
+            await sio.leave_room(sid, live_room(info["session_id"]))
     logger.info("ws.disconnect", sid=sid)
 
 
