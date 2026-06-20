@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   CheckSquare,
   ClipboardList,
   FileText,
@@ -9,10 +8,10 @@ import {
   Sparkles,
   Tag,
 } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,16 +50,7 @@ export default function ToolsPage() {
   return (
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
-      <header className="flex items-center gap-3 border-b border-border px-6 py-4">
-        <Link
-          href="/dashboard"
-          className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-          aria-label="Back to dashboard"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="font-semibold">Teacher tools</h1>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-6 py-10 lg:grid-cols-[16rem_1fr]">
         <nav className="space-y-1">

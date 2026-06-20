@@ -1,12 +1,13 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ResponseView } from "@/components/ai-panel/ResponseView";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Aurora } from "@/components/ui/aurora";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -41,12 +42,11 @@ export default function LibraryPage() {
   return (
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
-      <header className="flex items-center gap-2 border-b border-border px-6 py-4">
-        <Link href="/dashboard" className="rounded-full p-1.5 hover:bg-muted" aria-label="Back">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <span className="font-semibold">Library</span>
-      </header>
+      <AppHeader />
+      <div className="mx-auto w-full max-w-3xl px-6 pt-8">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Library</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Everything Aura has generated, in one place.</p>
+      </div>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
         <div className="flex flex-wrap items-center gap-3">

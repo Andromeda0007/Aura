@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, Check, Mic, Monitor, Moon, Sun } from "lucide-react";
+import { Check, Mic, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,14 +91,10 @@ export default function SettingsPage() {
   return (
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
-      <header className="flex items-center gap-2 border-b border-border px-6 py-4">
-        <Link href="/dashboard" className="rounded-full p-1.5 hover:bg-muted" aria-label="Back">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <span className="font-semibold">Settings</span>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-6 py-8">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Settings</h1>
         <Section title="Profile">
           <form onSubmit={saveName} className="flex gap-2">
             <Input value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />

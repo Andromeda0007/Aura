@@ -1,11 +1,11 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, ChevronDown, FileQuestion } from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, FileQuestion } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Aurora } from "@/components/ui/aurora";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { quizApi, type QuizResults, type QuizSummary } from "@/lib/api";
@@ -112,16 +112,7 @@ export default function QuizzesPage() {
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
 
-      <header className="flex items-center gap-3 border-b border-border px-6 py-4">
-        <Link
-          href="/dashboard"
-          className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-          aria-label="Back to dashboard"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="font-semibold">Quiz results</h1>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
         <h2 className="font-display text-3xl font-semibold tracking-tight">Quizzes</h2>

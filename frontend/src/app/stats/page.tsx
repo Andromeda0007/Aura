@@ -1,8 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Area,
@@ -20,7 +18,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { statsApi, type StatsActivity, type StatsDeep, type StatsOverview } from "@/lib/api";
 
@@ -84,15 +82,11 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="rounded-full p-1.5 hover:bg-muted" aria-label="Back">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <span className="font-semibold">Stats</span>
-        </div>
-        <ThemeToggle />
-      </header>
+      <AppHeader />
+      <div className="mx-auto w-full max-w-5xl px-6 pt-8">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Stats</h1>
+        <p className="mt-1 text-sm text-muted-foreground">How your classes are going.</p>
+      </div>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
         {empty ? (

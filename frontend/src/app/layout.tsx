@@ -17,6 +17,7 @@ const DESCRIPTION =
   "A real-time, multi-modal teaching assistant: it listens, watches your board, and turns your live lesson into quizzes, summaries, explanations, and diagrams on command.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "Aura — Teaching Assistant",
   description: DESCRIPTION,
   applicationName: "Aura",

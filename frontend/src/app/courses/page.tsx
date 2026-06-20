@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, GraduationCap, Plus, Users } from "lucide-react";
+import { GraduationCap, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,16 +55,7 @@ export default function CoursesPage() {
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
 
-      <header className="flex items-center gap-3 border-b border-border px-6 py-4">
-        <Link
-          href="/dashboard"
-          className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-          aria-label="Back to dashboard"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="font-semibold">Courses</h1>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
         <h2 className="font-display text-3xl font-semibold tracking-tight">Your classes</h2>

@@ -1,14 +1,14 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { BarChart3, ClipboardList, Clock, FileQuestion, GraduationCap, Library, LogOut, MessageSquare, Plus, Search, Settings, Sparkles, Zap } from "lucide-react";
+import { Clock, FileQuestion, MessageSquare, Plus, Search, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,6 @@ export default function DashboardPage() {
   const ready = useRequireAuth();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
   const [subject, setSubject] = useState("");
@@ -88,72 +87,7 @@ export default function DashboardPage() {
       <OnboardingTour />
       <Aurora className="opacity-50" />
 
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary font-semibold text-primary-foreground">
-            A
-          </span>
-          <span className="font-semibold">Aura</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-muted-foreground sm:inline">{user?.full_name}</span>
-          <Link
-            href="/tools"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <Sparkles className="h-4 w-4" /> Tools
-          </Link>
-          <Link
-            href="/courses"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <GraduationCap className="h-4 w-4" /> Courses
-          </Link>
-          <Link
-            href="/assignments"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <ClipboardList className="h-4 w-4" /> Homework
-          </Link>
-          <Link
-            href="/library"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <Library className="h-4 w-4" /> Library
-          </Link>
-          <Link
-            href="/quizzes"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <FileQuestion className="h-4 w-4" /> Quizzes
-          </Link>
-          <Link
-            href="/stats"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
-          >
-            <BarChart3 className="h-4 w-4" /> Stats
-          </Link>
-          <Link
-            href="/settings"
-            className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-            aria-label="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
-          <ThemeToggle />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Log out"
-            onClick={() => {
-              logout();
-              router.replace("/auth/login");
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <h1 className="font-display text-3xl font-semibold tracking-tight">

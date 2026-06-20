@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, Star } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -79,8 +79,9 @@ export function ReportView({ sessionId }: { sessionId: string }) {
             <h3 className="font-display text-lg font-semibold">Starred moments</h3>
             <ul className="mt-2 space-y-2">
               {report.highlights.map((h, i) => (
-                <li key={i} className="rounded-xl border-l-2 border-amber-400 bg-muted px-3 py-2 text-sm">
-                  {h}
+                <li key={i} className="flex items-start gap-2.5 rounded-xl bg-muted px-3 py-2 text-sm">
+                  <Star className="mt-0.5 h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
+                  <span>{h}</span>
                 </li>
               ))}
             </ul>
