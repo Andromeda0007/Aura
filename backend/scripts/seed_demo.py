@@ -23,6 +23,7 @@ from app.models.course import Course  # noqa: E402
 from app.models.department import Department  # noqa: E402
 from app.models.enums import UserRole  # noqa: E402
 from app.models.semester import Semester  # noqa: E402
+from app.models.unit import Unit  # noqa: E402
 from app.models.user import User  # noqa: E402
 
 # --- structure ---------------------------------------------------------------
@@ -78,10 +79,22 @@ COURSES: dict[tuple[int, int, str, int], list[tuple[str, str]]] = {
     ],
 }
 
+# --- units per course: (start_year, end_year, department, semester, course) -> [unit names in order] ---
+UNITS: dict[tuple[int, int, str, int, str], list[str]] = {
+    (2022, 2026, "Computer Science", 8, "Deep Learning"): [
+        "Foundations of Deep Learning",
+        "Deep Neural Networks (DNNs)",
+        "Introduction to CNN",
+        "Convolution Neural Network (CNN)",
+        "Deep Generative Models",
+        "Reinforcement Learning",
+    ],
+}
+
 
 def run() -> None:
     seed_admin()  # ensure the bootstrap admin exists
-    counts = {"batches": 0, "departments": 0, "semesters": 0, "courses": 0}
+    counts = {"batches": 0, "departments": 0, "semesters": 0, "courses": 0, "units": 0}
 
     with session_scope() as db:
         admin = db.scalar(select(User).where(User.role == UserRole.ADMIN))
@@ -127,6 +140,26 @@ def run() -> None:
                     continue
                 db.add(Course(teacher_id=admin.id, semester_id=sem.id, name=name, cover=cover))
                 counts["courses"] += 1
+
+        db.flush()
+
+        # units (under a specific course)
+        for (start, end, dept_name, sem_no, course_name), unit_names in UNITS.items():
+            batch = db.scalar(select(Batch).where(Batch.start_year == start, Batch.end_year == end))
+            dept = db.scalar(
+                select(Department).where(Department.batch_id == batch.id, Department.name == dept_name)
+            )
+            sem = db.scalar(
+                select(Semester).where(Semester.department_id == dept.id, Semester.number == sem_no)
+            )
+            course = db.scalar(
+                select(Course).where(Course.semester_id == sem.id, Course.name == course_name)
+            )
+            for i, name in enumerate(unit_names):
+                if db.scalar(select(Unit).where(Unit.course_id == course.id, Unit.name == name)):
+                    continue
+                db.add(Unit(course_id=course.id, name=name, order=i))
+                counts["units"] += 1
 
         db.commit()
 
