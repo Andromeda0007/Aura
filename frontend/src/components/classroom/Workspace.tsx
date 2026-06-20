@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Download, FileText, Mic, PanelLeft, PanelLeftClose, Radio, Send, Users, X } from "lucide-react";
+import { ArrowLeft, Copy, Download, FileText, Mic, PanelLeft, PanelLeftClose, Radio, Send, Trophy, Users, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { AudioCapture } from "@/components/audio/AudioCapture";
 import { AiPanel } from "@/components/classroom/AiPanel";
+import { LiveQuizHost } from "@/components/livequiz/LiveQuizHost";
 import { TranscriptPanel } from "@/components/classroom/TranscriptPanel";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const [tokens, setTokens] = useState(0);
   const [showTranscript, setShowTranscript] = useState(true);
   const [showShare, setShowShare] = useState(false);
+  const [showLiveQuiz, setShowLiveQuiz] = useState(false);
   const [listening, setListening] = useState(false);
   const connectedOnce = useRef(false);
   const pttRef = useRef<Recognition | null>(null);
@@ -255,6 +257,9 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           <Button variant="outline" size="sm" onClick={() => setShowShare(true)}>
             <Users className="h-4 w-4" /> Invite students
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowLiveQuiz(true)}>
+            <Trophy className="h-4 w-4" /> Live quiz
+          </Button>
           <Button variant="ghost" size="icon" aria-label="Export Markdown" title="Export Markdown" onClick={exportSession}>
             <Download className="h-4 w-4" />
           </Button>
@@ -316,6 +321,8 @@ export function Workspace({ sessionId }: { sessionId: string }) {
       {showShare && currentSession?.join_code && (
         <ShareModal joinCode={currentSession.join_code} onClose={() => setShowShare(false)} />
       )}
+
+      {showLiveQuiz && <LiveQuizHost onClose={() => setShowLiveQuiz(false)} />}
     </div>
   );
 }

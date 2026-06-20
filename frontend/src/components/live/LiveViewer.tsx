@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ResponseView } from "@/components/ai-panel/ResponseView";
+import { LiveQuizStudent } from "@/components/livequiz/LiveQuizStudent";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { liveApi } from "@/lib/api";
 import { connectStudentSocket, disconnectSocket } from "@/lib/socket";
@@ -81,6 +82,7 @@ export function LiveViewer({ code }: { code: string }) {
 
   return (
     <div className="flex h-dvh flex-col">
+      <LiveQuizStudent />
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <Link href="/" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary font-bold text-primary-foreground">
