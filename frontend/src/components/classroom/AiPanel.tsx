@@ -27,7 +27,10 @@ export function AiPanel() {
         ) : (
           <div className="space-y-3">
             {history.map((r, i) => (
-              <div key={r.commandId ?? i} className="rounded-xl border border-border bg-muted/40 p-3">
+              <div
+                key={r.commandId ?? i}
+                className={`rounded-xl border border-border bg-muted/40 p-3 ${i === 0 ? "animate-rise" : ""}`}
+              >
                 <div className="flex items-center justify-between">
                   <span className="inline-block rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
                     {r.type}
