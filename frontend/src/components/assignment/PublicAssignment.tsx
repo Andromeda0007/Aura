@@ -56,7 +56,7 @@ export function PublicAssignment({ code }: { code: string }) {
         <ThemeToggle />
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full flex-1 px-6 py-10 lg:px-[10%]">
         {status === "loading" && <p className="text-sm text-muted-foreground">Loading…</p>}
         {status === "error" && (
           <div className="rounded-2xl border border-border bg-card p-8 text-center">

@@ -84,7 +84,7 @@ export default function SettingsPage() {
       <Aurora className="opacity-40" />
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-6 py-8">
+      <main className="mx-auto w-full flex-1 space-y-4 px-6 py-8 lg:px-[10%]">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Profile</h1>
 
         <Section title="Your account">

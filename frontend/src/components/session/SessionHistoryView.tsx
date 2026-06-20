@@ -87,7 +87,7 @@ export function SessionHistoryView({ sessionId }: { sessionId: string }) {
       <Aurora className="opacity-40" />
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">
         <Breadcrumbs items={crumbs} />
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

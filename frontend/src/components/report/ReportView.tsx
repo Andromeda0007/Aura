@@ -39,7 +39,7 @@ export function ReportView({ sessionId }: { sessionId: string }) {
         </Button>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full flex-1 px-6 py-10 lg:px-[10%]">
         <p className="text-sm text-muted-foreground">
           {report.date ? format(new Date(report.date), "EEEE, MMMM d, yyyy") : ""}
           {report.durationMin ? ` · ${report.durationMin} min` : ""}
