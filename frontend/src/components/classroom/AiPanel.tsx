@@ -2,38 +2,9 @@
 
 import { Sparkles, Volume2 } from "lucide-react";
 
+import { ResponseView } from "@/components/ai-panel/ResponseView";
 import { speak, speakableText } from "@/lib/tts";
-import { DiagramDisplay } from "@/components/ai-panel/DiagramDisplay";
-import { QuizDisplay } from "@/components/ai-panel/QuizDisplay";
-import {
-  AnswerDisplay,
-  ExampleDisplay,
-  ExplanationDisplay,
-  FormatBoardDisplay,
-  SummaryDisplay,
-} from "@/components/ai-panel/displays";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AIResponse } from "@/types";
-
-function renderResponse(r: AIResponse) {
-  const d = r.data as never;
-  switch (r.type) {
-    case "quiz":
-      return <QuizDisplay data={d} />;
-    case "summary":
-      return <SummaryDisplay data={d} />;
-    case "explanation":
-      return <ExplanationDisplay data={d} />;
-    case "example":
-      return <ExampleDisplay data={d} />;
-    case "diagram":
-      return <DiagramDisplay data={d} />;
-    case "format_board":
-      return <FormatBoardDisplay data={d} />;
-    default:
-      return <AnswerDisplay data={d} />;
-  }
-}
 
 export function AiPanel() {
   const latest = useSessionStore((s) => s.latestResponse);
@@ -71,7 +42,9 @@ export function AiPanel() {
                     <Volume2 className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="mt-2">{renderResponse(r)}</div>
+                <div className="mt-2">
+                  <ResponseView response={r} />
+                </div>
               </div>
             ))}
           </div>

@@ -96,3 +96,17 @@ export const statsApi = {
   activity: () => api.get<StatsActivity>("/stats/activity").then((r) => r.data),
 };
 
+export interface LibraryItem {
+  commandId: string;
+  type: string;
+  command: string;
+  data: unknown;
+  sessionId: string;
+  subject: string;
+  timestamp: string | null;
+}
+
+export const libraryApi = {
+  list: () => api.get<LibraryItem[]>("/library").then((r) => r.data),
+};
+
