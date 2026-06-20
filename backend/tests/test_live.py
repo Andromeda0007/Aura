@@ -32,3 +32,9 @@ def test_live_resolve_happy_and_404():
     # lowercase still resolves (codes are normalized)
     assert client.get(f"/live/{code.lower()}").status_code == 200
     assert client.get("/live/ZZZZZZ").status_code == 404
+
+
+def test_ask_tutor_404():
+    # invalid code is rejected before any LLM call
+    r = client.post("/live/ZZZZZZ/ask", json={"question": "what is photosynthesis?"})
+    assert r.status_code == 404

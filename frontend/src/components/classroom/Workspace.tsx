@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Download, FileText, Mic, PanelLeft, PanelLeftClose, Radio, Send, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, Copy, Download, FileText, History, Mic, PanelLeft, PanelLeftClose, Radio, Send, Trophy, Users, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -265,6 +265,15 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           </Button>
           <Button variant="ghost" size="icon" aria-label="Export PDF" title="Export PDF" onClick={exportPdf}>
             <FileText className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Replay session"
+            title="Replay session"
+            onClick={() => router.push(`/replay/${sessionId}`)}
+          >
+            <History className="h-4 w-4" />
           </Button>
           <ThemeToggle />
           <Button variant="outline" size="sm" onClick={endSession}>End</Button>

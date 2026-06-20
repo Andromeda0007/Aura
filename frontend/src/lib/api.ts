@@ -151,6 +151,8 @@ export interface LiveSession {
 
 export const liveApi = {
   resolve: (code: string) => api.get<LiveSession>(`/live/${code}`).then((r) => r.data),
+  ask: (code: string, question: string) =>
+    api.post<{ answer: string }>(`/live/${code}/ask`, { question }).then((r) => r.data),
 };
 
 export interface CourseSummary {
