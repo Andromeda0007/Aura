@@ -22,17 +22,7 @@ from app.models.transcript import Transcript
 from app.models.unit import Unit
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut, SessionUpdate
-
-_INTENT_RESPONSE_TYPE = {
-    "generate_quiz": "quiz",
-    "summarize": "summary",
-    "explain": "explanation",
-    "generate_example": "example",
-    "generate_diagram": "diagram",
-    "answer_question": "answer",
-    "format_board": "format_board",
-    "other": "answer",
-}
+from app.services.command_payload import response_type_for
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = get_logger("aura.sessions")
@@ -156,7 +146,7 @@ def session_history(
         "commands": [
             {
                 "commandId": str(c.id),
-                "type": _INTENT_RESPONSE_TYPE.get(c.intent.value, "answer"),
+                "type": response_type_for(c.intent.value),
                 "command": c.raw_command,
                 "data": c.llm_response,
                 "timestamp": c.timestamp.isoformat() if c.timestamp else None,

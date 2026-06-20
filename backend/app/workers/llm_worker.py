@@ -15,21 +15,11 @@ from app.models.enums import CommandIntent, CommandStatus
 from app.models.quiz import Quiz
 from app.models.session import Session
 from app.services.ai_service import ai_service
+from app.services.command_payload import response_type_for
 from app.services.context_manager import get_context
 from app.websocket.connection import broadcast_to_session
 
 logger = get_logger("aura.llm")
-
-INTENT_RESPONSE_TYPE: dict[CommandIntent, str] = {
-    CommandIntent.GENERATE_QUIZ: "quiz",
-    CommandIntent.SUMMARIZE: "summary",
-    CommandIntent.EXPLAIN: "explanation",
-    CommandIntent.GENERATE_EXAMPLE: "example",
-    CommandIntent.GENERATE_DIAGRAM: "diagram",
-    CommandIntent.ANSWER_QUESTION: "answer",
-    CommandIntent.FORMAT_BOARD: "format_board",
-    CommandIntent.OTHER: "answer",
-}
 
 _WAKE = "hey aura"
 
@@ -66,7 +56,7 @@ async def process_command(session_id: str, raw_command: str) -> None:
     logger.info("llm.classified", session_id=session_id, intent=intent.value, command=command[:60])
 
     data: dict
-    response_type = INTENT_RESPONSE_TYPE.get(intent, "answer")
+    response_type = response_type_for(intent)
     status = CommandStatus.COMPLETED
     error: str | None = None
 
@@ -87,6 +77,16 @@ async def process_command(session_id: str, raw_command: str) -> None:
             data = await ai_service.generate_example(context, command, language=language)
         elif intent == CommandIntent.GENERATE_DIAGRAM:
             data = await ai_service.generate_diagram(context, command, language=language)
+        elif intent == CommandIntent.GENERATE_FACT:
+            data = await ai_service.generate_fact(context, command, language=language)
+        elif intent == CommandIntent.LIST_ITEMS:
+            data = await ai_service.list_items(context, command, language=language)
+        elif intent == CommandIntent.GENERATE_NUMERICAL:
+            data = await ai_service.generate_numerical(context, command, language=language)
+        elif intent == CommandIntent.GENERATE_IMAGE:
+            data = await ai_service.generate_image(command, language=language)
+        elif intent == CommandIntent.GENERATE_CHEMISTRY:
+            data = await ai_service.generate_chemistry(command, language=language)
         elif intent == CommandIntent.FORMAT_BOARD:
             data = await ai_service.format_board(context)
         else:  # ANSWER_QUESTION and OTHER both answer the query

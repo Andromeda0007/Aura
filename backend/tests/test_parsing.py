@@ -29,3 +29,77 @@ def test_intent_enum_coercion():
         CommandIntent("bogus_intent")  # classify() catches this -> OTHER
     assert CommandIntent("generate_quiz") is CommandIntent.GENERATE_QUIZ
     assert CommandIntent("format_board") is CommandIntent.FORMAT_BOARD
+
+
+# ---- numeric coercion ----
+def test_coerce_number_int_float():
+    assert AIService._coerce_number(5) == 5
+    assert AIService._coerce_number(9.8) == 9.8
+
+
+def test_coerce_number_strings():
+    assert AIService._coerce_number("1,200") == 1200.0
+    assert AIService._coerce_number("3.0e2") == 300.0
+    assert AIService._coerce_number("x+1") == "x+1"  # symbolic kept as-is
+
+
+def test_coerce_tolerance():
+    assert AIService._coerce_tolerance(None) is None
+    assert AIService._coerce_tolerance("0.5") == 0.5
+    assert AIService._coerce_tolerance(-1) is None  # negative -> None
+    assert AIService._coerce_tolerance("abc") is None
+
+
+# ---- pollinations url ----
+def test_pollinations_url():
+    url = AIService._pollinations_url("a single neuron")
+    assert url.startswith("https://image.pollinations.ai/prompt/")
+    assert "a%20single%20neuron" in url
+    assert "nologo=true" in url
+
+
+# ---- diagram kind detection ----
+def test_diagram_kind_from_src():
+    assert AIService._diagram_kind_from_src("sequenceDiagram\nA->>B: hi") == "sequence"
+    assert AIService._diagram_kind_from_src("stateDiagram-v2\n[*]-->A") == "state"
+    assert AIService._diagram_kind_from_src("erDiagram\nA ||--o{ B : x") == "er"
+    assert AIService._diagram_kind_from_src("classDiagram\nA <|-- B") == "class"
+    assert AIService._diagram_kind_from_src("mindmap\nroot") == "mindmap"
+    assert AIService._diagram_kind_from_src("flowchart LR\nA-->B") == "flowchart"
+
+
+# ---- mermaid sanitizer (multi-type, trees/graphs) ----
+def test_sanitize_prepends_flowchart_when_missing():
+    out = AIService._sanitize_mermaid("A --> B")
+    assert out.lower().startswith("flowchart")
+
+
+def test_sanitize_preserves_statediagram():
+    src = "stateDiagram-v2\n[*] --> Idle\nIdle --> Running"
+    out = AIService._sanitize_mermaid(src)
+    assert out.lower().startswith("statediagram")
+    assert "[*]" in out  # start/end marker not corrupted
+    assert "flowchart" not in out.lower()
+
+
+def test_sanitize_preserves_sequencediagram():
+    out = AIService._sanitize_mermaid("sequenceDiagram\nA->>B: hello")
+    assert out.lower().startswith("sequencediagram")
+
+
+def test_sanitize_quotes_circle_node_labels():
+    # tree/graph circle node with a colon (visit order) must get quoted
+    out = AIService._sanitize_mermaid('flowchart TD\nn1((1: 8)) --> n2((3))')
+    assert '(("1: 8"))' in out
+    assert "((3))" in out  # plain number left alone
+
+
+def test_sanitize_preserves_subgraph_and_classdef():
+    src = (
+        'flowchart LR\nsubgraph L1["Layer 1"]\nA["x"]\nend\n'
+        "classDef hot fill:#f96\nclass A hot"
+    )
+    out = AIService._sanitize_mermaid(src)
+    assert "subgraph" in out
+    assert "classDef hot" in out
+    assert "class A hot" in out

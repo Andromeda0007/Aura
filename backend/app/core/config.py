@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # Context compression
     compression_token_limit: int = 10000
 
+    # External rendering helpers (free, keyless). Only short prompts / compound
+    # names are sent to these — never lecture content.
+    pollinations_enabled: bool = True  # image generation (image.pollinations.ai)
+    pubchem_enabled: bool = True  # chemistry structures (pubchem.ncbi.nlm.nih.gov)
+    external_http_timeout: int = 15
+
     @field_validator("allowed_origins")
     @classmethod
     def _strip_origins(cls, v: str) -> str:

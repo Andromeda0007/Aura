@@ -12,19 +12,9 @@ from app.models.command import Command
 from app.models.enums import CommandStatus
 from app.models.session import Session
 from app.models.user import User
+from app.services.command_payload import response_type_for
 
 router = APIRouter(prefix="/library", tags=["library"])
-
-_TYPE = {
-    "generate_quiz": "quiz",
-    "summarize": "summary",
-    "explain": "explanation",
-    "generate_example": "example",
-    "generate_diagram": "diagram",
-    "answer_question": "answer",
-    "format_board": "format_board",
-    "other": "answer",
-}
 
 
 @router.get("")
@@ -42,7 +32,7 @@ def library(
     return [
         {
             "commandId": str(c.id),
-            "type": _TYPE.get(c.intent.value, "answer"),
+            "type": response_type_for(c.intent.value),
             "command": c.raw_command,
             "data": c.llm_response,
             "sessionId": str(c.session_id),
