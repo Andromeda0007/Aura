@@ -93,9 +93,16 @@ export interface StatsActivity {
   commandsByDay: Record<string, number>;
 }
 
+export interface StatsDeep {
+  bySubject: { subject: string; sessions: number; commands: number; attempts: number; avgPct: number }[];
+  quizPerformance: { quizId: string; subject: string; attempts: number; avgPct: number }[];
+  hardestConcepts: { subject: string; question: string; missRate: number; attempts: number }[];
+}
+
 export const statsApi = {
   overview: () => api.get<StatsOverview>("/stats/overview").then((r) => r.data),
   activity: () => api.get<StatsActivity>("/stats/activity").then((r) => r.data),
+  deep: () => api.get<StatsDeep>("/stats/deep").then((r) => r.data),
 };
 
 export interface LibraryItem {

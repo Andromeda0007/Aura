@@ -51,3 +51,11 @@ def test_public_quiz_404():
 
 def test_health():
     assert client.get("/health").json()["status"] == "ok"
+
+
+def test_stats_deep_authed():
+    _, token = _signup()
+    r = client.get("/stats/deep", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "bySubject" in body and "hardestConcepts" in body and "quizPerformance" in body

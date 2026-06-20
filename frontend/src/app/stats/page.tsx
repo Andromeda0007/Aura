@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   Cell,
   Legend,
   Pie,
@@ -20,7 +22,7 @@ import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { statsApi, type StatsActivity, type StatsOverview } from "@/lib/api";
+import { statsApi, type StatsActivity, type StatsDeep, type StatsOverview } from "@/lib/api";
 
 const PIE_COLORS = ["#6366f1", "#8b5cf6", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#ef4444", "#94a3b8"];
 
@@ -53,13 +55,15 @@ export default function StatsPage() {
   const ready = useRequireAuth();
   const [overview, setOverview] = useState<StatsOverview | null>(null);
   const [activity, setActivity] = useState<StatsActivity | null>(null);
+  const [deep, setDeep] = useState<StatsDeep | null>(null);
 
   useEffect(() => {
     if (!ready) return;
-    Promise.all([statsApi.overview(), statsApi.activity()])
-      .then(([o, a]) => {
+    Promise.all([statsApi.overview(), statsApi.activity(), statsApi.deep()])
+      .then(([o, a, d]) => {
         setOverview(o);
         setActivity(a);
+        setDeep(d);
       })
       .catch(() => toast.error("Could not load stats"));
   }, [ready]);
@@ -166,6 +170,92 @@ export default function StatsPage() {
                 )}
               </div>
             </div>
+
+            {deep && (
+              <>
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight">
+                  Deep insights
+                </h2>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="mb-3 text-sm font-semibold">Activity by subject</p>
+                    {deep.bySubject.length ? (
+                      <ResponsiveContainer width="100%" height={Math.max(180, deep.bySubject.length * 42)}>
+                        <BarChart data={deep.bySubject} layout="vertical" margin={{ left: 8 }}>
+                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                          <YAxis
+                            type="category"
+                            dataKey="subject"
+                            width={110}
+                            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: "var(--card)",
+                              border: "1px solid var(--border)",
+                              borderRadius: 12,
+                              color: "var(--foreground)",
+                            }}
+                          />
+                          <Bar dataKey="commands" fill="#6366f1" radius={[0, 6, 6, 0]} name="Aura asks" />
+                          <Bar dataKey="sessions" fill="#22c55e" radius={[0, 6, 6, 0]} name="Sessions" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="py-10 text-center text-sm text-muted-foreground">No subjects yet.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="mb-1 text-sm font-semibold">Hardest concepts</p>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Quiz questions students miss most.
+                    </p>
+                    {deep.hardestConcepts.length ? (
+                      <div className="space-y-2.5">
+                        {deep.hardestConcepts.map((h, i) => (
+                          <div key={i}>
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span className="min-w-0 truncate">{h.question}</span>
+                              <span className="shrink-0 tabular-nums text-muted-foreground">
+                                {Math.round(h.missRate * 100)}%
+                              </span>
+                            </div>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                              <div className="h-full rounded-full bg-danger" style={{ width: `${Math.round(h.missRate * 100)}%` }} />
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground">{h.subject}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="py-10 text-center text-sm text-muted-foreground">
+                        No quiz attempts yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {deep.quizPerformance.length > 0 && (
+                  <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+                    <p className="mb-3 text-sm font-semibold">Quiz performance (hardest first)</p>
+                    <div className="divide-y divide-border">
+                      {deep.quizPerformance.map((q) => (
+                        <div key={q.quizId} className="flex items-center gap-3 py-2 text-sm">
+                          <span className="min-w-0 flex-1 truncate">{q.subject}</span>
+                          <span className="text-xs text-muted-foreground">{q.attempts} attempts</span>
+                          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-success" style={{ width: `${q.avgPct}%` }} />
+                          </div>
+                          <span className="w-10 shrink-0 text-right tabular-nums font-medium">{q.avgPct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
       </main>
