@@ -25,6 +25,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ProfileUpdate(BaseModel):
+    full_name: str = Field(min_length=1, max_length=160)
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str

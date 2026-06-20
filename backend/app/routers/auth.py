@@ -23,6 +23,7 @@ from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
+    ProfileUpdate,
     RefreshRequest,
     SignupRequest,
     TokenPair,
@@ -90,3 +91,22 @@ def refresh(body: RefreshRequest, db: DBSession = Depends(get_db)) -> TokenPair:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> UserOut:
     return UserOut.model_validate(user)
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    body: ProfileUpdate,
+    db: DBSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> UserOut:
+    user.full_name = body.full_name
+    db.commit()
+    db.refresh(user)
+    return UserOut.model_validate(user)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> None:
+    """Delete the account and all its sessions/data (cascade)."""
+    db.delete(user)
+    db.commit()

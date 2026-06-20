@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { BarChart3, Clock, FileQuestion, LogOut, MessageSquare, Plus, Search, Zap } from "lucide-react";
+import { BarChart3, Clock, FileQuestion, LogOut, MessageSquare, Plus, Search, Settings, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -100,6 +100,13 @@ export default function DashboardPage() {
             className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
           >
             <BarChart3 className="h-4 w-4" /> Stats
+          </Link>
+          <Link
+            href="/settings"
+            className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
+            aria-label="Settings"
+          >
+            <Settings className="h-4 w-4" />
           </Link>
           <ThemeToggle />
           <Button

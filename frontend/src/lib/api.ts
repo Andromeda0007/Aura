@@ -55,6 +55,9 @@ export const authApi = {
   login: (body: { email: string; password: string }) =>
     api.post<AuthResponse>("/auth/login", body).then((r) => r.data),
   me: () => api.get<User>("/auth/me").then((r) => r.data),
+  updateProfile: (full_name: string) =>
+    api.patch<User>("/auth/me", { full_name }).then((r) => r.data),
+  deleteAccount: () => api.delete("/auth/me").then(() => undefined),
 };
 
 export const sessionApi = {
