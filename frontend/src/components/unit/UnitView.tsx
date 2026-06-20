@@ -101,6 +101,10 @@ export function UnitView({ unitId }: { unitId: string }) {
           </form>
         )}
 
+        <div className="mt-8">
+          <LevelStatsPanel load={() => unitApi.stats(unitId)} />
+        </div>
+
         <h2 className="mt-8 text-lg font-semibold">Sessions</h2>
         <div className="mt-3 space-y-2">
           {sessions.length === 0 ? (
@@ -141,9 +145,6 @@ export function UnitView({ unitId }: { unitId: string }) {
           )}
         </div>
 
-        <div className="mt-8">
-          <LevelStatsPanel load={() => unitApi.stats(unitId)} />
-        </div>
       </main>
     </div>
   );

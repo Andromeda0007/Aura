@@ -53,6 +53,10 @@ export function DepartmentView({ departmentId }: { departmentId: string }) {
           <p className="mt-1 text-muted-foreground">Semesters</p>
         </div>
 
+        <div className="mt-8">
+          <LevelStatsPanel load={() => departmentApi.stats(departmentId)} />
+        </div>
+
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {semesters.length === 0 ? (
             <div className="col-span-full rounded-2xl border border-dashed border-border p-12 text-center">
@@ -74,9 +78,6 @@ export function DepartmentView({ departmentId }: { departmentId: string }) {
           )}
         </div>
 
-        <div className="mt-8">
-          <LevelStatsPanel load={() => departmentApi.stats(departmentId)} />
-        </div>
       </main>
     </div>
   );

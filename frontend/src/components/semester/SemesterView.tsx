@@ -130,6 +130,10 @@ export function SemesterView({ semesterId }: { semesterId: string }) {
           </form>
         )}
 
+        <div className="mt-8">
+          <LevelStatsPanel load={() => semesterApi.stats(semesterId)} />
+        </div>
+
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {courses.length === 0 ? (
             <div className="col-span-full rounded-2xl border border-dashed border-border p-12 text-center">
@@ -155,9 +159,6 @@ export function SemesterView({ semesterId }: { semesterId: string }) {
           )}
         </div>
 
-        <div className="mt-8">
-          <LevelStatsPanel load={() => semesterApi.stats(semesterId)} />
-        </div>
       </main>
     </div>
   );
