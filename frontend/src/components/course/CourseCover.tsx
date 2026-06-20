@@ -7,10 +7,10 @@ import {
   Cpu,
   Database,
   FlaskConical,
-  FunctionSquare,
   Globe,
   Network,
   Scale,
+  Sigma,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,7 +23,7 @@ export const COVERS: Record<string, { tint: string; fg: string; Icon: LucideIcon
   network: { tint: "bg-sky-500/10", fg: "text-sky-500", Icon: Network, label: "Network" },
   chip: { tint: "bg-amber-500/10", fg: "text-amber-600", Icon: Cpu, label: "Hardware" },
   code: { tint: "bg-emerald-500/10", fg: "text-emerald-600", Icon: Binary, label: "Code" },
-  math: { tint: "bg-rose-500/10", fg: "text-rose-500", Icon: FunctionSquare, label: "Math" },
+  math: { tint: "bg-rose-500/10", fg: "text-rose-500", Icon: Sigma, label: "Math" },
   science: { tint: "bg-fuchsia-500/10", fg: "text-fuchsia-500", Icon: Atom, label: "Science" },
   chemistry: { tint: "bg-lime-500/10", fg: "text-lime-600", Icon: FlaskConical, label: "Chemistry" },
   law: { tint: "bg-slate-500/10", fg: "text-slate-500", Icon: Scale, label: "Law / Theory" },
