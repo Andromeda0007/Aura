@@ -46,6 +46,7 @@ def _strip_wake(raw: str) -> str:
 async def process_command(session_id: str, raw_command: str) -> None:
     start = time.time()
     command = _strip_wake(raw_command)
+    ai_service.reset_tokens()  # count LLM tokens for this command (classify + generate)
 
     with session_scope() as db:
         row = Command(
@@ -102,6 +103,7 @@ async def process_command(session_id: str, raw_command: str) -> None:
             row.llm_response = data
             row.status = status
             row.processing_time_ms = ms
+            row.tokens_used = ai_service.tokens_used()
             row.error_message = error
 
     await broadcast_to_session(

@@ -16,9 +16,10 @@ from app.models.command import Command
 from app.models.enums import CommandStatus, SessionStatus
 from app.models.quiz import Quiz
 from app.models.quiz_attempt import QuizAttempt
+from app.models.course import Course
 from app.models.session import Session
 from app.models.transcript import Transcript
-from app.models.course import Course
+from app.models.unit import Unit
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionOut, SessionUpdate
 
@@ -52,15 +53,21 @@ def create_session(
     db: DBSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ) -> SessionOut:
-    course_id = None
-    if body.course_id is not None:
-        course = db.get(Course, body.course_id)
+    def _owned_unit(unit_id: uuid.UUID) -> Unit:
+        unit = db.get(Unit, unit_id)
+        if unit is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
+        course = db.get(Course, unit.course_id)
         if course is None or course.teacher_id != teacher.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-        course_id = course.id
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your unit")
+        return unit
+
+    unit_id = None
+    if body.unit_id is not None:
+        unit_id = _owned_unit(body.unit_id).id
     sess = Session(
         teacher_id=teacher.id,
-        course_id=course_id,
+        unit_id=unit_id,
         subject=body.subject,
         language=body.language or "English",
         status=SessionStatus.ACTIVE,
@@ -79,18 +86,19 @@ def update_session(
     db: DBSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ) -> SessionOut:
-    """(Re)assign the session's course and/or language. Only fields the client
-    actually sends are changed (so a language-only update keeps the course)."""
+    """(Re)assign the session's unit and/or language. Only fields the client
+    actually sends are changed (so a language-only update keeps the unit)."""
     sess = _owned_session(session_id, db, teacher)
     fields = body.model_fields_set
-    if "course_id" in fields:
-        if body.course_id is not None:
-            course = db.get(Course, body.course_id)
-            if course is None or course.teacher_id != teacher.id:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-            sess.course_id = course.id
+    if "unit_id" in fields:
+        if body.unit_id is not None:
+            unit = db.get(Unit, body.unit_id)
+            course = db.get(Course, unit.course_id) if unit else None
+            if unit is None or course is None or course.teacher_id != teacher.id:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
+            sess.unit_id = unit.id
         else:
-            sess.course_id = None
+            sess.unit_id = None
     if "language" in fields and body.language:
         sess.language = body.language
     db.commit()

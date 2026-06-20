@@ -28,6 +28,7 @@ class Command(Base):
         SAEnum(CommandStatus, name="command_status"), default=CommandStatus.PENDING, nullable=False
     )
     processing_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # real LLM usage
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

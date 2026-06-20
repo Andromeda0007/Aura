@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     from app.routers import (
         assignments,
         auth,
+        batches,
         courses,
         export,
         library,
@@ -83,9 +84,12 @@ def create_app() -> FastAPI:
         sessions,
         stats,
         tools,
+        units,
     )
 
     app.include_router(auth.router)
+    app.include_router(batches.router)
+    app.include_router(units.router)
     app.include_router(sessions.router)
     app.include_router(courses.router)
     app.include_router(quizzes.router)

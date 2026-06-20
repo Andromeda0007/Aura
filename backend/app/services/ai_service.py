@@ -6,6 +6,7 @@ with a single repair retry before falling back to a safe error payload.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 from typing import Any
 
@@ -17,6 +18,15 @@ from app.models.enums import CommandIntent
 
 logger = get_logger("aura.ai")
 
+# Per-coroutine LLM token accumulator. asyncio tasks copy the context at creation,
+# so each process_command task counts its own tokens (classify + generate) safely.
+_tokens_var: contextvars.ContextVar[int] = contextvars.ContextVar("aura_tokens", default=0)
+
+
+def _add_tokens(n: int) -> None:
+    if n:
+        _tokens_var.set(_tokens_var.get() + int(n))
+
 GROQ_FAST = "llama-3.1-8b-instant"
 GROQ_SMART = "llama-3.3-70b-versatile"
 GEMINI_FAST = "gemini-2.0-flash-lite"
@@ -26,6 +36,15 @@ _INTENTS = [i.value for i in CommandIntent]
 
 
 class AIService:
+    # ---- token accounting (per coroutine) ----
+    @staticmethod
+    def reset_tokens() -> None:
+        _tokens_var.set(0)
+
+    @staticmethod
+    def tokens_used() -> int:
+        return _tokens_var.get()
+
     # ---- low-level providers ----
     async def _groq(self, model: str, system: str, user: str) -> str | None:
         if not settings.groq_api_key:
@@ -46,7 +65,9 @@ class AIService:
                     },
                 )
             if r.status_code == 200:
-                return r.json()["choices"][0]["message"]["content"]
+                body = r.json()
+                _add_tokens((body.get("usage") or {}).get("total_tokens", 0))
+                return body["choices"][0]["message"]["content"]
             logger.warning("ai.groq_failed", status=r.status_code, model=model)
         except Exception as exc:  # noqa: BLE001
             logger.warning("ai.groq_error", error=str(exc))
@@ -67,7 +88,9 @@ class AIService:
                     },
                 )
             if r.status_code == 200:
-                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                body = r.json()
+                _add_tokens((body.get("usageMetadata") or {}).get("totalTokenCount", 0))
+                return body["candidates"][0]["content"]["parts"][0]["text"]
             logger.warning("ai.gemini_failed", status=r.status_code, model=model)
         except Exception as exc:  # noqa: BLE001
             logger.warning("ai.gemini_error", error=str(exc))

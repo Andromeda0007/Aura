@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.database import get_db
 from app.core.deps import get_current_teacher
 from app.models.assignment import Assignment, AssignmentSubmission
+from app.models.batch import Batch
 from app.models.course import Course
 from app.models.quiz import Quiz
 from app.models.user import User
@@ -108,11 +109,12 @@ def submissions(
             .order_by(AssignmentSubmission.created_at.desc())
         ).all()
     )
-    # roster completion: who from the course has / hasn't submitted (by name)
+    # roster completion: who from the course's batch has / hasn't submitted (by name)
     roster: list[str] = []
     if a.course_id:
         course = db.get(Course, a.course_id)
-        roster = [r.get("name") for r in (course.roster or []) if r.get("name")] if course else []
+        batch = db.get(Batch, course.batch_id) if course else None
+        roster = [r.get("name") for r in (batch.roster or []) if r.get("name")] if batch else []
     submitted_names = {s.student_name for s in subs if s.student_name}
     missing = [n for n in roster if n not in submitted_names]
     return {

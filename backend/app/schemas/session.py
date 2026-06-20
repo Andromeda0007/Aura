@@ -11,12 +11,12 @@ from app.models.enums import SessionStatus
 
 class SessionCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=200)
-    course_id: uuid.UUID | None = None
+    unit_id: uuid.UUID | None = None
     language: str = Field(default="English", max_length=40)
 
 
 class SessionUpdate(BaseModel):
-    course_id: uuid.UUID | None = None
+    unit_id: uuid.UUID | None = None
     language: str | None = Field(default=None, max_length=40)
 
 
@@ -25,7 +25,7 @@ class SessionOut(BaseModel):
 
     id: uuid.UUID
     teacher_id: uuid.UUID
-    course_id: uuid.UUID | None
+    unit_id: uuid.UUID | None
     subject: str
     language: str
     join_code: str

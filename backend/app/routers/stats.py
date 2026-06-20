@@ -181,3 +181,82 @@ def deep(db: DBSession = Depends(get_db), teacher: User = Depends(get_current_te
         "quizPerformance": quiz_performance,
         "hardestConcepts": hardest,
     }
+
+
+# ---- reusable scoped aggregator (unit / course / batch stats) ----
+def aggregate_stats(db: DBSession, session_ids: list) -> dict:
+    """Compute a stats payload for an arbitrary set of session ids (any hierarchy
+    level resolves to its leaf sessions, then calls this)."""
+    if not session_ids:
+        return {
+            "totalSessions": 0,
+            "totalCommands": 0,
+            "totalQuizzes": 0,
+            "totalTranscripts": 0,
+            "avgLatencyMs": 0,
+            "tokensUsed": 0,
+            "intentMix": {},
+            "hardestConcepts": [],
+        }
+
+    in_sessions = Command.session_id.in_(session_ids)
+    total_commands = db.scalar(select(func.count()).select_from(Command).where(in_sessions)) or 0
+    total_quizzes = db.scalar(
+        select(func.count()).select_from(Quiz).where(Quiz.session_id.in_(session_ids))
+    ) or 0
+    total_transcripts = db.scalar(
+        select(func.count()).select_from(Transcript).where(Transcript.session_id.in_(session_ids))
+    ) or 0
+    tokens_used = db.scalar(
+        select(func.coalesce(func.sum(Command.tokens_used), 0)).where(in_sessions)
+    ) or 0
+
+    latencies = list(
+        db.scalars(
+            select(Command.processing_time_ms).where(
+                in_sessions, Command.processing_time_ms.isnot(None)
+            )
+        ).all()
+    )
+    avg_latency = round(sum(latencies) / len(latencies)) if latencies else 0
+
+    intent_rows = db.execute(
+        select(Command.intent, func.count()).where(in_sessions).group_by(Command.intent)
+    ).all()
+    intent_mix = {row[0].value: row[1] for row in intent_rows}
+
+    # hardest concepts across these sessions' quizzes
+    quizzes = list(
+        db.scalars(select(Quiz).where(Quiz.session_id.in_(session_ids))).all()
+    )
+    hardest: list[dict] = []
+    for quiz in quizzes:
+        questions = (quiz.quiz_data or {}).get("questions", [])
+        if not questions:
+            continue
+        attempts = list(
+            db.scalars(select(QuizAttempt).where(QuizAttempt.quiz_id == quiz.id)).all()
+        )
+        if not attempts:
+            continue
+        for i, qn in enumerate(questions):
+            miss = sum(
+                1
+                for a in attempts
+                if (a.answers[i] if i < len(a.answers) else -1) != qn.get("answer_index")
+            )
+            hardest.append(
+                {"question": qn.get("question", ""), "missRate": round(miss / len(attempts), 2)}
+            )
+    hardest = sorted((h for h in hardest if h["missRate"] > 0), key=lambda x: -x["missRate"])[:6]
+
+    return {
+        "totalSessions": len(session_ids),
+        "totalCommands": total_commands,
+        "totalQuizzes": total_quizzes,
+        "totalTranscripts": total_transcripts,
+        "avgLatencyMs": avg_latency,
+        "tokensUsed": int(tokens_used),
+        "intentMix": intent_mix,
+        "hardestConcepts": hardest,
+    }
