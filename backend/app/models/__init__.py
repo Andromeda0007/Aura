@@ -5,6 +5,7 @@ from app.models.enums import (
     SessionStatus,
     UserRole,
 )
+from app.models.assignment import Assignment, AssignmentSubmission
 from app.models.command import Command
 from app.models.course import Course
 from app.models.quiz import Quiz
@@ -19,6 +20,8 @@ __all__ = [
     "Session",
     "Transcript",
     "WhiteboardLog",
+    "Assignment",
+    "AssignmentSubmission",
     "Command",
     "Course",
     "Quiz",

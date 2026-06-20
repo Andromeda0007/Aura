@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  ClipboardList,
   FileQuestion,
   GraduationCap,
   LayoutDashboard,
@@ -62,6 +63,7 @@ export function CommandPalette() {
       { label: "New session", icon: Plus, run: go("/dashboard"), keywords: "create start class" },
       { label: "Teacher tools", icon: Sparkles, run: go("/tools"), keywords: "differentiate lesson worksheet rubric grade" },
       { label: "Courses", icon: GraduationCap, run: go("/courses"), keywords: "class roster" },
+      { label: "Homework / assignments", icon: ClipboardList, run: go("/assignments"), keywords: "due submit" },
       { label: "Content library", icon: Library, run: go("/library") },
       { label: "Quiz results", icon: FileQuestion, run: go("/quizzes") },
       { label: "Stats", icon: BarChart3, run: go("/stats"), keywords: "analytics insights" },
@@ -88,7 +90,7 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center bg-background/70 p-4 pt-[15vh] backdrop-blur-sm"
+      className="fixed inset-0 z-60 flex items-start justify-center bg-background/70 p-4 pt-[15vh] backdrop-blur-sm"
       onClick={() => setOpen(false)}
     >
       <div

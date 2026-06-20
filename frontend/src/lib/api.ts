@@ -188,6 +188,36 @@ export interface CourseDetail {
   sessions: Session[];
 }
 
+export interface AssignmentSummary {
+  id: string;
+  title: string;
+  shareCode: string;
+  hasQuiz: boolean;
+  dueAt: string | null;
+  submissions: number;
+  createdAt: string | null;
+}
+export interface AssignmentSubmissions {
+  title: string;
+  hasQuiz: boolean;
+  submissions: { name: string; score: number; total: number; at: string | null }[];
+  notSubmitted: string[];
+}
+export interface PublicAssignment {
+  title: string;
+  instructions: string;
+  dueAt: string | null;
+  quizData: { questions: unknown[] } | null;
+}
+
+export const assignmentApi = {
+  list: () => api.get<AssignmentSummary[]>("/assignments").then((r) => r.data),
+  create: (body: { title: string; instructions?: string; quiz_id?: string | null; course_id?: string | null; due_at?: string | null }) =>
+    api.post<{ id: string; shareCode: string }>("/assignments", body).then((r) => r.data),
+  submissions: (id: string) =>
+    api.get<AssignmentSubmissions>(`/assignments/${id}/submissions`).then((r) => r.data),
+};
+
 export const toolsApi = {
   differentiate: (content: string, level: string) =>
     api.post("/tools/differentiate", { content, level }).then((r) => r.data),
