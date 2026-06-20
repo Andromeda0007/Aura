@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, Download, FileText, History, Maximize2, Mic, Minimize2, PanelLeft, PanelLeftClose, Radio, ScrollText, Send, Trophy, Users, X } from "lucide-react";
-import { jsPDF } from "jspdf";
+import { ArrowLeft, ChevronDown, Copy, Download, History, Maximize2, Mic, Minimize2, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Radio, ScrollText, Send, Trophy, Users, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
@@ -54,12 +53,32 @@ export function Workspace({ sessionId }: { sessionId: string }) {
   const [command, setCommand] = useState("");
   const [tokens, setTokens] = useState(0);
   const [showTranscript, setShowTranscript] = useState(true);
+  const [showAi, setShowAi] = useState(true);
   const [showShare, setShowShare] = useState(false);
   const [showLiveQuiz, setShowLiveQuiz] = useState(false);
   const [teachMode, setTeachMode] = useState(false);
   const [listening, setListening] = useState(false);
   const connectedOnce = useRef(false);
   const pttRef = useRef<Recognition | null>(null);
+
+  // Every time a session opens: reveal both side panels (transcript + Aura),
+  // then smoothly tuck them away after a beat so the teacher notices the panels
+  // (and their toggles) exist. They stay hidden until manually re-opened.
+  useEffect(() => {
+    setShowTranscript(true);
+    setShowAi(true);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const tuck = () => {
+      setShowTranscript(false);
+      setShowAi(false);
+    };
+    if (reduce) {
+      tuck();
+      return;
+    }
+    const t = setTimeout(tuck, 1100);
+    return () => clearTimeout(t);
+  }, [sessionId]);
 
   const { currentSession, setSession, isRecording, setRecording, compression } = useSessionStore();
   const addTranscript = useSessionStore((s) => s.addTranscript);
@@ -164,20 +183,6 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function exportPdf() {
-    try {
-      const blob = await sessionApi.exportMarkdown(sessionId);
-      const text = await blob.text();
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      doc.setFontSize(10);
-      const lines = doc.splitTextToSize(text, 500);
-      doc.text(lines, 40, 50);
-      doc.save(`${currentSession?.subject ?? "session"}.pdf`);
-    } catch {
-      toast.error("PDF export failed");
-    }
-  }
-
   async function endSession() {
     try {
       await sessionApi.end(sessionId);
@@ -252,7 +257,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           <div className="min-w-0">
             <p className="truncate font-semibold">{currentSession?.subject ?? "Session"}</p>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`h-2 w-2 rounded-full ${connected ? "bg-success" : "bg-muted-foreground"}`} />
+              <span className={`h-2 w-2 rounded-full ${connected ? "animate-pulse bg-success" : "bg-muted-foreground"}`} />
               {connected ? "Connected" : "Connecting…"}
             </p>
           </div>
@@ -269,25 +274,38 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           >
             {showTranscript ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={showAi ? "Hide Aura panel" : "Show Aura panel"}
+            title={showAi ? "Hide Aura panel" : "Show Aura panel"}
+            onClick={() => setShowAi((v) => !v)}
+            className="hidden lg:inline-flex"
+          >
+            {showAi ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+          </Button>
           {(tokens > 0 || compression) && (
             <span className="hidden rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground sm:inline">
               context · ~{tokens} tok
               {compression?.status === "started" ? " · compressing…" : ""}
             </span>
           )}
-          <select
-            aria-label="Class language"
-            title="Class language"
-            value={currentSession?.language ?? "English"}
-            onChange={(e) => changeLanguage(e.target.value)}
-            className="hidden h-9 rounded-full border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:block"
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.label} value={l.label}>
-                {l.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative hidden sm:block">
+            <select
+              aria-label="Class language"
+              title="Class language"
+              value={currentSession?.language ?? "English"}
+              onChange={(e) => changeLanguage(e.target.value)}
+              className="h-9 appearance-none rounded-full border border-input bg-card pl-4 pr-9 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.label} value={l.label}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
           <Button
             variant={isRecording ? "danger" : "outline"} size="sm"
             onClick={() => setRecording(!isRecording)}
@@ -302,9 +320,6 @@ export function Workspace({ sessionId }: { sessionId: string }) {
           </Button>
           <Button variant="ghost" size="icon" aria-label="Export Markdown" title="Export Markdown" onClick={exportSession}>
             <Download className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="Export PDF" title="Export PDF" onClick={exportPdf}>
-            <FileText className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -340,16 +355,25 @@ export function Workspace({ sessionId }: { sessionId: string }) {
 
       {/* 3-panel workspace (teach mode = board only) */}
       <main
-        className={`grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 ${
+        className={`grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 transition-[grid-template-columns] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           teachMode
             ? ""
             : showTranscript
-              ? "lg:grid-cols-[20rem_1fr_22rem]"
-              : "lg:grid-cols-[1fr_22rem]"
+              ? showAi
+                ? "lg:grid-cols-[20rem_1fr_22rem]"
+                : "lg:grid-cols-[20rem_1fr_0rem]"
+              : showAi
+                ? "lg:grid-cols-[0rem_1fr_22rem]"
+                : "lg:grid-cols-[0rem_1fr_0rem]"
         }`}
       >
-        {!teachMode && showTranscript && (
-          <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
+        {!teachMode && (
+          <section
+            inert={!showTranscript}
+            className={`hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-opacity duration-750 ease-out motion-reduce:transition-none lg:flex ${
+              showTranscript ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          >
             <TranscriptPanel />
           </section>
         )}
@@ -359,7 +383,12 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         </section>
 
         {!teachMode && (
-          <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
+          <section
+            inert={!showAi}
+            className={`hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-opacity duration-750 ease-out motion-reduce:transition-none lg:flex ${
+              showAi ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          >
             <AiPanel />
           </section>
         )}
