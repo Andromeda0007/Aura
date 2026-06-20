@@ -1,7 +1,8 @@
+import { DoodleIcons } from "@/components/ui/doodles";
 import { cn } from "@/lib/utils";
 
-/** Signature aurora glow — brand-hue radial blobs, blurred. Background only.
- *  Drop into a `relative` container. Honors theme via CSS vars. */
+/** Signature aurora glow — brand-hue radial blobs, blurred, plus faint scattered
+ *  subject doodles. Background only. Drop into a `relative` container. */
 export function Aurora({ className }: { className?: string }) {
   return (
     <div
@@ -20,6 +21,7 @@ export function Aurora({ className }: { className?: string }) {
         className="absolute -bottom-48 -left-40 h-[32rem] w-[32rem] rounded-full opacity-[0.12] blur-[120px]"
         style={{ background: "radial-gradient(closest-side, var(--success), transparent)" }}
       />
+      <DoodleIcons />
     </div>
   );
 }
