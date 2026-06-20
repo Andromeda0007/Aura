@@ -65,7 +65,15 @@ def make_user(role: UserRole = UserRole.TEACHER, semester_ids: tuple = ()) -> tu
     return uid, _login(email)
 
 
-def make_batch(admin_h: dict, start: int = 2022, end: int = 2026) -> dict:
+_year_counter = 2000
+
+
+def make_batch(admin_h: dict, start: int | None = None, end: int | None = None) -> dict:
+    """Batches are globally unique by year range — default to a fresh range each call."""
+    global _year_counter
+    if start is None:
+        start, end = _year_counter, _year_counter + 4
+        _year_counter += 1
     r = client.post("/batches", json={"start_year": start, "end_year": end}, headers=admin_h)
     assert r.status_code == 201, r.text
     return r.json()

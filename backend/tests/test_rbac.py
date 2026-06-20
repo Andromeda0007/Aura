@@ -60,8 +60,8 @@ def test_student_is_read_only():
 
 def test_assignment_validation():
     ah = auth(admin_token())
-    b1 = make_batch(ah, 2022, 2026)
-    b2 = make_batch(ah, 2023, 2027)
+    b1 = make_batch(ah)
+    b2 = make_batch(ah)
     cs1 = semesters_of(ah, make_department(ah, b1["id"], "CS")["id"])
     cs2 = semesters_of(ah, make_department(ah, b2["id"], "CS")["id"])
 

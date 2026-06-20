@@ -53,8 +53,9 @@ export default function DashboardPage() {
       await batchApi.create({ start_year: start, end_year: end });
       setShowForm(false);
       setBatches(await batchApi.list());
-    } catch {
-      toast.error("Could not create batch");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Could not create batch");
     } finally {
       setCreating(false);
     }

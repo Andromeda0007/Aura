@@ -36,6 +36,13 @@ def _visible(batch_id: uuid.UUID, db: DBSession, user: User) -> Batch:
 def create_batch(
     body: BatchCreate, db: DBSession = Depends(get_db), admin: User = Depends(require_admin)
 ) -> BatchOut:
+    exists = db.scalar(
+        select(Batch).where(Batch.start_year == body.start_year, Batch.end_year == body.end_year)
+    )
+    if exists is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"Batch {body.start_year}–{body.end_year} already exists"
+        )
     batch = Batch(created_by=admin.id, start_year=body.start_year, end_year=body.end_year)
     db.add(batch)
     db.commit()

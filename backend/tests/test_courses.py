@@ -1,4 +1,13 @@
-from tests.util import admin_token, auth, client, make_hierarchy
+from tests.util import admin_token, auth, client, make_batch, make_hierarchy
+
+
+def test_duplicate_batch_rejected():
+    h = auth(admin_token())
+    b = make_batch(h)
+    dup = client.post(
+        "/batches", json={"start_year": b["start_year"], "end_year": b["end_year"]}, headers=h
+    )
+    assert dup.status_code == 409
 
 
 def test_hierarchy_crud_and_counts():
