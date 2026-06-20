@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
@@ -105,8 +105,9 @@ def update_me(
     return UserOut.model_validate(user)
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
-def delete_me(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> None:
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def delete_me(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> Response:
     """Delete the account and all its sessions/data (cascade)."""
     db.delete(user)
     db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
