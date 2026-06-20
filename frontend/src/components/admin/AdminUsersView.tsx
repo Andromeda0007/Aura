@@ -10,6 +10,7 @@ import { batchTitle } from "@/components/layout/Breadcrumbs";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useIsAdmin } from "@/hooks/useRole";
 import { adminApi, batchApi, type AdminUser, type BatchSummary } from "@/lib/api";
@@ -154,10 +155,9 @@ export function AdminUsersView() {
           <form onSubmit={create} className="mt-3 space-y-2">
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" />
             <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" />
-            <Input
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
               placeholder="Temp password (8+ chars)"
             />
             <select

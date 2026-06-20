@@ -282,65 +282,6 @@ class AIService:
             "smart", self._with_language(system, language), f"Question: {command}\n\nContext:\n{context}"
         )
 
-    # ---- teacher superpowers (on-demand tools) ----
-    async def differentiate(self, content: str, audience: str) -> dict[str, Any]:
-        system = (
-            "You adapt teaching content for a specific audience while preserving every key fact "
-            f"and concept. Rewrite the content for: {audience}. Keep it accurate and complete; "
-            "adjust vocabulary, sentence length, and scaffolding to fit the audience. "
-            'Respond with ONLY JSON: {"content": str, "notes": [str, ...]} where notes lists the '
-            "main adaptations you made."
-        )
-        return await self._generate_json("smart", system, f"Original content:\n{content}")
-
-    async def lesson_plan(self, topic: str, grade: str, minutes: int) -> dict[str, Any]:
-        system = (
-            "You are a master teacher. Create a complete, classroom-ready lesson plan. "
-            'Respond with ONLY JSON: {"title": str, "objectives": [str, ...], '
-            '"materials": [str, ...], "activities": [{"name": str, "minutes": int, '
-            '"description": str}, ...], "assessment": str, "homework": str}. '
-            f"Target grade level: {grade}. Total class time: {minutes} minutes "
-            "(activity minutes should sum to about that)."
-        )
-        return await self._generate_json("smart", system, f"Lesson topic / context:\n{topic}")
-
-    async def worksheet(self, topic: str, count: int) -> dict[str, Any]:
-        system = (
-            "You are a teacher creating a printable worksheet with an answer key. "
-            f"Produce {count} questions of mixed difficulty. "
-            'Respond with ONLY JSON: {"title": str, "instructions": str, '
-            '"problems": [{"question": str, "answer": str}, ...]}.'
-        )
-        return await self._generate_json("smart", system, f"Worksheet topic / context:\n{topic}")
-
-    async def rubric(self, assignment: str) -> dict[str, Any]:
-        system = (
-            "You are a teacher creating a grading rubric with four performance levels "
-            '("Excellent", "Proficient", "Developing", "Beginning"). '
-            'Respond with ONLY JSON: {"title": str, "levels": [str, str, str, str], '
-            '"criteria": [{"name": str, "descriptions": [str, str, str, str]}, ...]} '
-            "where each criterion has one description per level, in the same order as levels."
-        )
-        return await self._generate_json("smart", system, f"Assignment:\n{assignment}")
-
-    async def grade_open(self, question: str, guidance: str, response: str) -> dict[str, Any]:
-        system = (
-            "You grade an open-ended student response fairly and constructively. "
-            'Respond with ONLY JSON: {"score": int, "max": int, "feedback": str, '
-            '"strengths": [str, ...], "improvements": [str, ...]}. Use a 0-10 scale (max=10).'
-        )
-        user = f"Question/prompt:\n{question}\n\nGrading guidance:\n{guidance}\n\nStudent response:\n{response}"
-        return await self._generate_json("smart", system, user)
-
-    async def standards(self, content: str) -> dict[str, Any]:
-        system = (
-            "You align teaching content to academic standards (e.g. Common Core, NGSS). "
-            'Respond with ONLY JSON: {"standards": [{"code": str, "description": str}, ...], '
-            '"note": str}. Suggest 3-6 plausible standards; if unsure of exact codes, give the '
-            "closest standard family and say so in note."
-        )
-        return await self._generate_json("smart", system, f"Content:\n{content}")
-
     async def format_board(self, context: str) -> dict[str, Any]:
         system = (
             "You reformat messy whiteboard OCR text into clean, well-structured blocks. "

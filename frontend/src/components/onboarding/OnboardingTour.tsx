@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, PencilRuler, Radio, Sparkles, Users, X } from "lucide-react";
+import { ClipboardList, Mic, PencilRuler, Radio, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const KEY = "aura_onboarded_v1";
@@ -27,9 +27,9 @@ const STEPS = [
     body: "Invite students to follow your board live, or run a Kahoot-style live quiz on their phones.",
   },
   {
-    icon: Sparkles,
-    title: "Teacher tools",
-    body: "Differentiate content, build worksheets and rubrics, auto-grade, and assign homework — all in one place.",
+    icon: ClipboardList,
+    title: "Assign homework",
+    body: "Turn any quiz into homework with a due date, and track who's completed it.",
   },
 ];
 

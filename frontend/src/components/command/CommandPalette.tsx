@@ -8,7 +8,6 @@ import {
   Library,
   Moon,
   Settings,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -19,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 interface Action {
   label: string;
-  icon: typeof Sparkles;
+  icon: typeof GraduationCap;
   run: () => void;
   keywords?: string;
 }
@@ -58,7 +57,6 @@ export function CommandPalette() {
     };
     return [
       { label: "Batches", icon: GraduationCap, run: go("/dashboard"), keywords: "dashboard home class semester cohort" },
-      { label: "Teacher tools", icon: Sparkles, run: go("/tools"), keywords: "differentiate lesson worksheet rubric grade" },
       { label: "Homework / assignments", icon: ClipboardList, run: go("/assignments"), keywords: "due submit" },
       { label: "Content library", icon: Library, run: go("/library") },
       { label: "Quiz results", icon: FileQuestion, run: go("/quizzes") },

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
@@ -107,8 +108,8 @@ export default function LoginPage() {
             </div>
             <div className="space-y-1.5">
               <label htmlFor="password" className="text-sm font-medium">Password</label>
-              <Input
-                id="password" type="password" autoComplete="current-password" required
+              <PasswordInput
+                id="password" autoComplete="current-password" required
                 value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
               />

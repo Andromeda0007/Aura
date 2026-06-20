@@ -90,7 +90,6 @@ def create_app() -> FastAPI:
         quizzes,
         sessions,
         stats,
-        tools,
         units,
     )
 
@@ -106,7 +105,6 @@ def create_app() -> FastAPI:
     app.include_router(stats.router)
     app.include_router(library.router)
     app.include_router(live.router)
-    app.include_router(tools.router)
 
     return app
 

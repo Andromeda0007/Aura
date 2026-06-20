@@ -9,7 +9,6 @@ import {
   LogOut,
   MoreHorizontal,
   Settings,
-  Sparkles,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +28,6 @@ function navFor(role: string | undefined): { primary: NavItem[]; more: NavItem[]
   if (role === "student") return { primary: [], more: [] };
   const primary: NavItem[] = [
     { href: "/dashboard", label: "Batches", icon: GraduationCap },
-    { href: "/tools", label: "Tools", icon: Sparkles },
     { href: "/stats", label: "Stats", icon: BarChart3 },
   ];
   if (role === "admin") primary.splice(1, 0, { href: "/admin/users", label: "Users", icon: Users });
