@@ -7,6 +7,7 @@ from app.models.enums import (
 )
 from app.models.command import Command
 from app.models.quiz import Quiz
+from app.models.quiz_attempt import QuizAttempt
 from app.models.session import Session
 from app.models.transcript import Transcript
 from app.models.user import User
@@ -19,6 +20,7 @@ __all__ = [
     "WhiteboardLog",
     "Command",
     "Quiz",
+    "QuizAttempt",
     "UserRole",
     "SessionStatus",
     "CommandIntent",

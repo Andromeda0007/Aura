@@ -102,6 +102,12 @@ export default function DashboardPage() {
             <Library className="h-4 w-4" /> Library
           </Link>
           <Link
+            href="/quizzes"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
+          >
+            <FileQuestion className="h-4 w-4" /> Quizzes
+          </Link>
+          <Link
             href="/stats"
             className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
           >

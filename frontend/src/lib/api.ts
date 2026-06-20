@@ -110,3 +110,26 @@ export const libraryApi = {
   list: () => api.get<LibraryItem[]>("/library").then((r) => r.data),
 };
 
+export interface QuizSummary {
+  id: string;
+  shareCode: string;
+  subject: string;
+  questionCount: number;
+  attempts: number;
+  createdAt: string | null;
+}
+export interface QuizResults {
+  shareCode: string;
+  subject: string;
+  total: number;
+  attempts: number;
+  avgScore: number;
+  mostMissed: { question: string; missRate: number }[];
+  recent: { name: string; score: number; total: number; at: string | null }[];
+}
+
+export const quizApi = {
+  list: () => api.get<QuizSummary[]>("/quizzes").then((r) => r.data),
+  results: (id: string) => api.get<QuizResults>(`/quizzes/${id}/results`).then((r) => r.data),
+};
+
