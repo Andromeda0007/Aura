@@ -22,7 +22,7 @@ import { useAuthStore } from "@/store/authStore";
 
 // Primary nav stays small (legible, low cognitive load); the rest lives behind "More".
 const PRIMARY = [
-  { href: "/courses", label: "Courses", icon: GraduationCap },
+  { href: "/dashboard", label: "Batches", icon: GraduationCap },
   { href: "/tools", label: "Tools", icon: Sparkles },
   { href: "/stats", label: "Stats", icon: BarChart3 },
 ];

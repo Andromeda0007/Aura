@@ -61,10 +61,8 @@ export const authApi = {
 };
 
 export const sessionApi = {
-  create: (subject: string, courseId?: string | null) =>
-    api.post<Session>("/sessions", { subject, course_id: courseId ?? null }).then((r) => r.data),
-  setCourse: (id: string, courseId: string | null) =>
-    api.patch<Session>(`/sessions/${id}`, { course_id: courseId }).then((r) => r.data),
+  create: (subject: string, unitId?: string | null) =>
+    api.post<Session>("/sessions", { subject, unit_id: unitId ?? null }).then((r) => r.data),
   setLanguage: (id: string, language: string) =>
     api.patch<Session>(`/sessions/${id}`, { language }).then((r) => r.data),
   list: () => api.get<Session[]>("/sessions").then((r) => r.data),
@@ -175,24 +173,74 @@ export const liveApi = {
     api.post<{ answer: string }>(`/live/${code}/ask`, { question }).then((r) => r.data),
 };
 
-export interface CourseSummary {
+// ---- Academic hierarchy: Batch -> Course -> Unit -> Session ----
+export interface Batch {
   id: string;
-  name: string;
-  color: string;
-  students: number;
+  program: string;
+  semester: number;
+  year: number;
+  section: string | null;
+  roster: { name: string }[];
+  archived: boolean;
+  created_at: string;
+}
+export interface BatchSummary {
+  id: string;
+  program: string;
+  semester: number;
+  year: number;
+  section: string | null;
+  archived: boolean;
+  courses: number;
   sessions: number;
+  tokensUsed: number;
   createdAt: string | null;
 }
+
 export interface Course {
   id: string;
+  batch_id: string;
   name: string;
+  professor: string;
+  cover: string;
   color: string;
-  roster: { name: string }[];
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+}
+export interface CourseSummary extends Course {
+  units: number;
+  sessions: number;
+  tokensUsed: number;
+  items: number;
+}
+export interface Unit {
+  id: string;
+  course_id: string;
+  name: string;
+  description: string;
+  order: number;
   created_at: string;
 }
 export interface CourseDetail {
   course: Course;
+  counts: { sessions: number; tokensUsed: number; items: number };
+  units: (Unit & { sessions: number })[];
+}
+export interface UnitDetail {
+  unit: Unit;
   sessions: Session[];
+}
+
+export interface LevelStats {
+  totalSessions: number;
+  totalCommands: number;
+  totalQuizzes: number;
+  totalTranscripts: number;
+  avgLatencyMs: number;
+  tokensUsed: number;
+  intentMix: Record<string, number>;
+  hardestConcepts: { question: string; missRate: number }[];
 }
 
 export interface AssignmentSummary {
@@ -238,13 +286,45 @@ export const toolsApi = {
   standards: (content: string) => api.post("/tools/standards", { content }).then((r) => r.data),
 };
 
+export const batchApi = {
+  list: () => api.get<BatchSummary[]>("/batches").then((r) => r.data),
+  get: (id: string) => api.get<Batch>(`/batches/${id}`).then((r) => r.data),
+  create: (body: { program: string; semester: number; year: number; section?: string | null }) =>
+    api.post<Batch>("/batches", body).then((r) => r.data),
+  update: (
+    id: string,
+    body: Partial<{ program: string; semester: number; year: number; section: string | null; roster: { name: string }[]; archived: boolean }>,
+  ) => api.patch<Batch>(`/batches/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/batches/${id}`).then(() => undefined),
+  stats: (id: string) => api.get<LevelStats>(`/batches/${id}/stats`).then((r) => r.data),
+};
+
 export const courseApi = {
-  list: () => api.get<CourseSummary[]>("/courses").then((r) => r.data),
+  list: (batchId: string) =>
+    api.get<CourseSummary[]>(`/courses?batch_id=${batchId}`).then((r) => r.data),
   get: (id: string) => api.get<CourseDetail>(`/courses/${id}`).then((r) => r.data),
-  create: (name: string, color?: string) =>
-    api.post<Course>("/courses", { name, color }).then((r) => r.data),
-  update: (id: string, body: { name?: string; color?: string; roster?: { name: string }[] }) =>
+  create: (body: {
+    batch_id: string;
+    name: string;
+    professor?: string;
+    cover?: string;
+    color?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  }) => api.post<Course>("/courses", body).then((r) => r.data),
+  update: (id: string, body: Partial<Omit<Course, "id" | "batch_id" | "created_at">>) =>
     api.patch<Course>(`/courses/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.delete(`/courses/${id}`).then(() => undefined),
+  stats: (id: string) => api.get<LevelStats>(`/courses/${id}/stats`).then((r) => r.data),
+};
+
+export const unitApi = {
+  get: (id: string) => api.get<UnitDetail>(`/units/${id}`).then((r) => r.data),
+  create: (body: { course_id: string; name: string; description?: string; order?: number }) =>
+    api.post<Unit>("/units", body).then((r) => r.data),
+  update: (id: string, body: Partial<{ name: string; description: string; order: number }>) =>
+    api.patch<Unit>(`/units/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/units/${id}`).then(() => undefined),
+  stats: (id: string) => api.get<LevelStats>(`/units/${id}/stats`).then((r) => r.data),
 };
 

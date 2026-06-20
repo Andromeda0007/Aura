@@ -26,6 +26,7 @@ export interface AuthResponse {
 export interface Session {
   id: string;
   teacher_id: string;
+  unit_id: string | null;
   subject: string;
   language: string;
   join_code: string;

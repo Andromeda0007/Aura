@@ -5,10 +5,8 @@ import {
   ClipboardList,
   FileQuestion,
   GraduationCap,
-  LayoutDashboard,
   Library,
   Moon,
-  Plus,
   Settings,
   Sparkles,
   Sun,
@@ -21,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 interface Action {
   label: string;
-  icon: typeof Plus;
+  icon: typeof Sparkles;
   run: () => void;
   keywords?: string;
 }
@@ -59,10 +57,8 @@ export function CommandPalette() {
       router.push(path);
     };
     return [
-      { label: "Go to Dashboard", icon: LayoutDashboard, run: go("/dashboard") },
-      { label: "New session", icon: Plus, run: go("/dashboard"), keywords: "create start class" },
+      { label: "Batches", icon: GraduationCap, run: go("/dashboard"), keywords: "dashboard home class semester cohort" },
       { label: "Teacher tools", icon: Sparkles, run: go("/tools"), keywords: "differentiate lesson worksheet rubric grade" },
-      { label: "Courses", icon: GraduationCap, run: go("/courses"), keywords: "class roster" },
       { label: "Homework / assignments", icon: ClipboardList, run: go("/assignments"), keywords: "due submit" },
       { label: "Content library", icon: Library, run: go("/library") },
       { label: "Quiz results", icon: FileQuestion, run: go("/quizzes") },
