@@ -15,8 +15,9 @@ from app.models.command import Command
 from app.models.enums import CommandStatus, SessionStatus
 from app.models.session import Session
 from app.models.transcript import Transcript
+from app.models.course import Course
 from app.models.user import User
-from app.schemas.session import SessionCreate, SessionOut
+from app.schemas.session import SessionCreate, SessionOut, SessionUpdate
 
 _INTENT_RESPONSE_TYPE = {
     "generate_quiz": "quiz",
@@ -48,11 +49,43 @@ def create_session(
     db: DBSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ) -> SessionOut:
-    sess = Session(teacher_id=teacher.id, subject=body.subject, status=SessionStatus.ACTIVE)
+    course_id = None
+    if body.course_id is not None:
+        course = db.get(Course, body.course_id)
+        if course is None or course.teacher_id != teacher.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+        course_id = course.id
+    sess = Session(
+        teacher_id=teacher.id,
+        course_id=course_id,
+        subject=body.subject,
+        status=SessionStatus.ACTIVE,
+    )
     db.add(sess)
     db.commit()
     db.refresh(sess)
     logger.info("session.create", session_id=str(sess.id), teacher_id=str(teacher.id))
+    return SessionOut.model_validate(sess)
+
+
+@router.patch("/{session_id}", response_model=SessionOut)
+def update_session(
+    session_id: uuid.UUID,
+    body: SessionUpdate,
+    db: DBSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+) -> SessionOut:
+    """Currently only (re)assigns the session to one of the teacher's courses."""
+    sess = _owned_session(session_id, db, teacher)
+    if body.course_id is not None:
+        course = db.get(Course, body.course_id)
+        if course is None or course.teacher_id != teacher.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+        sess.course_id = course.id
+    else:
+        sess.course_id = None
+    db.commit()
+    db.refresh(sess)
     return SessionOut.model_validate(sess)
 
 

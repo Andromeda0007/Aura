@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { BarChart3, Clock, FileQuestion, Library, LogOut, MessageSquare, Plus, Search, Settings, Zap } from "lucide-react";
+import { BarChart3, Clock, FileQuestion, GraduationCap, Library, LogOut, MessageSquare, Plus, Search, Settings, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -95,6 +95,12 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-muted-foreground sm:inline">{user?.full_name}</span>
+          <Link
+            href="/courses"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
+          >
+            <GraduationCap className="h-4 w-4" /> Courses
+          </Link>
           <Link
             href="/library"
             className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"

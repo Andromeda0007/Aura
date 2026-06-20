@@ -61,8 +61,10 @@ export const authApi = {
 };
 
 export const sessionApi = {
-  create: (subject: string) =>
-    api.post<Session>("/sessions", { subject }).then((r) => r.data),
+  create: (subject: string, courseId?: string | null) =>
+    api.post<Session>("/sessions", { subject, course_id: courseId ?? null }).then((r) => r.data),
+  setCourse: (id: string, courseId: string | null) =>
+    api.patch<Session>(`/sessions/${id}`, { course_id: courseId }).then((r) => r.data),
   list: () => api.get<Session[]>("/sessions").then((r) => r.data),
   get: (id: string) => api.get<Session>(`/sessions/${id}`).then((r) => r.data),
   end: (id: string) => api.post<Session>(`/sessions/${id}/end`).then((r) => r.data),
@@ -142,5 +144,35 @@ export interface LiveSession {
 
 export const liveApi = {
   resolve: (code: string) => api.get<LiveSession>(`/live/${code}`).then((r) => r.data),
+};
+
+export interface CourseSummary {
+  id: string;
+  name: string;
+  color: string;
+  students: number;
+  sessions: number;
+  createdAt: string | null;
+}
+export interface Course {
+  id: string;
+  name: string;
+  color: string;
+  roster: { name: string }[];
+  created_at: string;
+}
+export interface CourseDetail {
+  course: Course;
+  sessions: Session[];
+}
+
+export const courseApi = {
+  list: () => api.get<CourseSummary[]>("/courses").then((r) => r.data),
+  get: (id: string) => api.get<CourseDetail>(`/courses/${id}`).then((r) => r.data),
+  create: (name: string, color?: string) =>
+    api.post<Course>("/courses", { name, color }).then((r) => r.data),
+  update: (id: string, body: { name?: string; color?: string; roster?: { name: string }[] }) =>
+    api.patch<Course>(`/courses/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/courses/${id}`).then(() => undefined),
 };
 

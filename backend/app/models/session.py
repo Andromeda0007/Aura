@@ -27,6 +27,9 @@ class Session(Base):
     teacher_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("courses.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     subject: Mapped[str] = mapped_column(String(200), nullable=False)
     # Short public code students type/scan to join the live session (read-only).
     join_code: Mapped[str] = mapped_column(
