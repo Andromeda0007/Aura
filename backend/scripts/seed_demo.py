@@ -17,12 +17,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select  # noqa: E402
 
 from app.core.database import session_scope  # noqa: E402
+from app.core.security import hash_password  # noqa: E402
 from app.core.seed import seed_admin  # noqa: E402
 from app.models.batch import Batch  # noqa: E402
 from app.models.course import Course  # noqa: E402
 from app.models.department import Department  # noqa: E402
 from app.models.enums import UserRole  # noqa: E402
 from app.models.semester import Semester  # noqa: E402
+from app.models.semester_member import SemesterMember  # noqa: E402
 from app.models.unit import Unit  # noqa: E402
 from app.models.user import User  # noqa: E402
 
@@ -79,6 +81,23 @@ COURSES: dict[tuple[int, int, str, int], list[tuple[str, str]]] = {
     ],
 }
 
+# --- demo accounts (dev passwords; change in prod) ---
+# Each gets memberships in the listed (start_year, end_year, department, semester) classes.
+DEMO_USERS = [
+    {
+        "email": "sagarrane@gmail.com",
+        "password": "temp-password",
+        "full_name": "Sagar Rane",
+        "role": UserRole.TEACHER,
+        "semesters": [
+            (2022, 2026, "Computer Science", 8),
+            (2023, 2027, "Computer Science", 6),
+            (2024, 2028, "Computer Science", 4),
+            (2025, 2029, "Computer Science", 2),
+        ],
+    },
+]
+
 # --- units per course: (start_year, end_year, department, semester, course) -> [unit names in order] ---
 UNITS: dict[tuple[int, int, str, int, str], list[str]] = {
     (2022, 2026, "Computer Science", 8, "Deep Learning"): [
@@ -94,7 +113,7 @@ UNITS: dict[tuple[int, int, str, int, str], list[str]] = {
 
 def run() -> None:
     seed_admin()  # ensure the bootstrap admin exists
-    counts = {"batches": 0, "departments": 0, "semesters": 0, "courses": 0, "units": 0}
+    counts = {"batches": 0, "departments": 0, "semesters": 0, "courses": 0, "units": 0, "users": 0}
 
     with session_scope() as db:
         admin = db.scalar(select(User).where(User.role == UserRole.ADMIN))
@@ -160,6 +179,30 @@ def run() -> None:
                     continue
                 db.add(Unit(course_id=course.id, name=name, order=i))
                 counts["units"] += 1
+
+        db.flush()
+
+        # demo teacher / student accounts (skip if the email already exists)
+        def _semester_id(start: int, end: int, dept_name: str, sem_no: int):
+            b = db.scalar(select(Batch).where(Batch.start_year == start, Batch.end_year == end))
+            d = db.scalar(select(Department).where(Department.batch_id == b.id, Department.name == dept_name))
+            s = db.scalar(select(Semester).where(Semester.department_id == d.id, Semester.number == sem_no))
+            return s.id
+
+        for spec in DEMO_USERS:
+            if db.scalar(select(User).where(User.email == spec["email"])):
+                continue
+            u = User(
+                email=spec["email"],
+                password_hash=hash_password(spec["password"]),
+                full_name=spec["full_name"],
+                role=spec["role"],
+            )
+            db.add(u)
+            db.flush()
+            for start, end, dept_name, sem_no in spec["semesters"]:
+                db.add(SemesterMember(semester_id=_semester_id(start, end, dept_name, sem_no), user_id=u.id))
+            counts["users"] += 1
 
         db.commit()
 
