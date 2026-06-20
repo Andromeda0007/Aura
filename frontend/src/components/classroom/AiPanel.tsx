@@ -42,7 +42,7 @@ export function AiPanel() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold">
-        <Sparkles className="h-4 w-4 text-accent" /> AI
+        <Sparkles className="h-4 w-4 text-accent" /> Aura
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {!latest ? (

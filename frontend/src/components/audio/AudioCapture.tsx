@@ -26,7 +26,11 @@ interface SpeechRecognitionLike {
   stop: () => void;
 }
 
-const WAKE = "hey aura";
+// Robust wake matcher: browser ASR mangles "Aura" (ora / aurora / era / "or a" …),
+// so we accept a "hey/ok/okay/hi" anchor + an Aura-ish word. The anchor keeps
+// false-positives low while tolerating the common mis-hearings.
+const WAKE_RE =
+  /\b(?:hey|hay|hi|ok|okay)[\s,]+(?:aura|aurora|ora|oora|hora|era|aro|arrow|or a|are a|hour a)\b/i;
 
 /** Browser Web Speech capture. Detects the "Hey Aura" wake phrase -> voice_command;
  *  otherwise streams finalized text as transcript_text. Renders nothing. */
@@ -98,15 +102,14 @@ export function AudioCapture({ sessionId, enabled }: { sessionId: string; enable
     function handleFinal(raw: string) {
       const text = raw.trim();
       if (!text) return;
-      const lower = text.toLowerCase();
       const socket = getSocket();
-      const idx = lower.indexOf(WAKE);
-      if (idx !== -1) {
-        const command = text.slice(idx + WAKE.length).replace(/^[\s,.:!?]+/, "").trim();
+      const m = text.match(WAKE_RE);
+      if (m && m.index !== undefined) {
+        const command = text.slice(m.index + m[0].length).replace(/^[\s,.:;!?–-]+/, "").trim();
         if (command) socket?.emit("voice_command", { sessionId, command: `hey aura ${command}` });
-      } else {
-        socket?.emit("transcript_text", { sessionId, text });
+        return;
       }
+      socket?.emit("transcript_text", { sessionId, text });
     }
 
     recRef.current = rec;

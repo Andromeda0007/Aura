@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, FileText, Radio, Send } from "lucide-react";
+import { ArrowLeft, Download, FileText, Mic, PanelLeft, PanelLeftClose, Radio, Send } from "lucide-react";
 import { jsPDF } from "jspdf";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -31,13 +31,29 @@ const Board = dynamic(
   },
 );
 
+// Minimal Web Speech typings for tap-to-talk (one-shot recognition).
+type SpeechEvent = { results: { [i: number]: { [j: number]: { transcript: string } } } };
+type Recognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: SpeechEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
 export function Workspace({ sessionId }: { sessionId: string }) {
   const ready = useRequireAuth();
   const router = useRouter();
   const [connected, setConnected] = useState(false);
   const [command, setCommand] = useState("");
   const [tokens, setTokens] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(true);
+  const [listening, setListening] = useState(false);
   const connectedOnce = useRef(false);
+  const pttRef = useRef<Recognition | null>(null);
 
   const { currentSession, setSession, isRecording, setRecording, compression } = useSessionStore();
   const addTranscript = useSessionStore((s) => s.addTranscript);
@@ -59,7 +75,7 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         router.replace("/dashboard");
       });
 
-    // Restore prior transcripts + AI responses.
+    // Restore prior transcripts + Aura responses.
     sessionApi
       .history(sessionId)
       .then((h) => {
@@ -149,10 +165,46 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     e.preventDefault();
     const text = command.trim();
     if (!text) return;
-    const full = text.toLowerCase().startsWith("hey aura") ? text : `hey aura ${text}`;
-    getSocket()?.emit("voice_command", { sessionId, command: full });
+    getSocket()?.emit("voice_command", { sessionId, command: `hey aura ${text}` });
     setCommand("");
-    toast.message("Command sent", { description: full });
+    toast.message("Sent to Aura", { description: text });
+  }
+
+  // Tap-to-talk: one-shot recognition → send as a command (no wake word needed).
+  function pushToTalk() {
+    if (listening) {
+      pttRef.current?.stop();
+      return;
+    }
+    const w = window as unknown as {
+      SpeechRecognition?: new () => Recognition;
+      webkitSpeechRecognition?: new () => Recognition;
+    };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      toast.error("Voice isn't supported here — type your command instead (Chrome/Edge for voice).");
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = "en-US";
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const t = e.results?.[0]?.[0]?.transcript?.trim();
+      if (t) {
+        getSocket()?.emit("voice_command", { sessionId, command: `hey aura ${t}` });
+        toast.message("Sent to Aura", { description: t });
+      }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    pttRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
   }
 
   if (!ready) return null;
@@ -176,6 +228,16 @@ export function Workspace({ sessionId }: { sessionId: string }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={showTranscript ? "Hide transcript" : "Show transcript"}
+            title={showTranscript ? "Hide transcript" : "Show transcript"}
+            onClick={() => setShowTranscript((v) => !v)}
+            className="hidden lg:inline-flex"
+          >
+            {showTranscript ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+          </Button>
           {(tokens > 0 || compression) && (
             <span className="hidden rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground sm:inline">
               context · ~{tokens} tok
@@ -200,10 +262,16 @@ export function Workspace({ sessionId }: { sessionId: string }) {
       </header>
 
       {/* 3-panel workspace */}
-      <main className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[20rem_1fr_22rem]">
-        <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
-          <TranscriptPanel />
-        </section>
+      <main
+        className={`grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 ${
+          showTranscript ? "lg:grid-cols-[20rem_1fr_22rem]" : "lg:grid-cols-[1fr_22rem]"
+        }`}
+      >
+        {showTranscript && (
+          <section className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:flex">
+            <TranscriptPanel />
+          </section>
+        )}
 
         <section className="relative min-h-0 overflow-hidden rounded-2xl border border-border bg-card">
           <Board sessionId={sessionId} recording={isRecording} />
@@ -217,10 +285,21 @@ export function Workspace({ sessionId }: { sessionId: string }) {
       {/* Footer command box */}
       <footer className="border-t border-border p-3">
         <form onSubmit={sendCommand} className="mx-auto flex max-w-3xl items-center gap-2">
+          <Button
+            type="button"
+            size="icon"
+            variant={listening ? "danger" : "outline"}
+            className={`h-12 w-12 shrink-0 ${listening ? "animate-pulse" : ""}`}
+            aria-label={listening ? "Listening… tap to stop" : "Tap to talk"}
+            title={listening ? "Listening… tap to stop" : "Tap to talk"}
+            onClick={pushToTalk}
+          >
+            <Mic className="h-5 w-5" />
+          </Button>
           <input
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder='Type a command, or say "Hey Aura, make a quiz…"'
+            placeholder={listening ? "Listening…" : 'Type a command, or tap the mic / say "Hey Aura…"'}
             className="h-12 flex-1 rounded-full border border-input bg-card px-5 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <Button type="submit" size="icon" className="h-12 w-12" aria-label="Send command">

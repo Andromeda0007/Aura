@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
 import { Providers } from "./providers";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["opsz"],
+});
 
 export const metadata: Metadata = {
-  title: "Aura — AI Teaching Assistant",
+  title: "Aura — Teaching Assistant",
   description:
-    "A real-time multi-modal AI teaching assistant: listens, watches the board, and generates quizzes, summaries, and more on command.",
+    "A real-time, multi-modal teaching assistant: it listens, watches your board, and turns your live lesson into quizzes, summaries, explanations, and diagrams on command.",
 };
 
 export default function RootLayout({
@@ -20,9 +26,10 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning: browser extensions inject body attrs (e.g. cz-shortcut-listen) */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

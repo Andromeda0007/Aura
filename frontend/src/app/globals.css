@@ -3,46 +3,55 @@
 /* next-themes drives light/dark via the `class` strategy on <html>. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ---- Design tokens (light) — bright, lights-on classroom, high contrast ---- */
+/* ============================================================
+   "Aurora, grounded" — committed-restrained indigo identity.
+   Light = lit-room default (paper-clean, true neutral, high contrast).
+   ============================================================ */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --primary: #4f46e5;        /* indigo-600 */
-  --primary-foreground: #ffffff;
-  --accent: #8b5cf6;         /* violet-500 */
-  --accent-foreground: #ffffff;
-  --ring: #6366f1;
-  --success: #16a34a;
-  --danger: #dc2626;
-  --radius: 1rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.22 0.02 270);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 270);
+  --muted: oklch(0.97 0.004 270);
+  --muted-foreground: oklch(0.45 0.02 270);   /* AA on white — not light gray */
+  --border: oklch(0.91 0.006 270);
+  --input: oklch(0.91 0.006 270);
+  --primary: oklch(0.52 0.20 274);            /* indigo */
+  --primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.62 0.20 300);             /* violet */
+  --accent-foreground: oklch(0.99 0 0);
+  --ring: oklch(0.52 0.20 274);
+  --success: oklch(0.55 0.14 155);            /* emerald (scores/correct) */
+  --danger: oklch(0.55 0.20 25);
+
+  --radius: 0.875rem;                         /* 14px — cards; never ≥24px */
+
+  /* Emil easing — custom curves, stronger than CSS defaults */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ---- Design tokens (dark) — dimmed room, glare-reduced navy ---- */
+/* Dark = dimmed-room: deep midnight indigo, tinted toward the brand hue */
 .dark {
-  --background: #0b1020;
-  --foreground: #e5e7eb;
-  --card: #131a2b;
-  --card-foreground: #e5e7eb;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --border: #273449;
-  --input: #273449;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --accent: #a78bfa;
-  --accent-foreground: #0b1020;
-  --ring: #818cf8;
-  --success: #22c55e;
-  --danger: #ef4444;
+  --background: oklch(0.20 0.03 270);
+  --foreground: oklch(0.95 0.01 270);
+  --card: oklch(0.24 0.035 270);
+  --card-foreground: oklch(0.95 0.01 270);
+  --muted: oklch(0.28 0.04 270);
+  --muted-foreground: oklch(0.74 0.02 270);
+  --border: oklch(0.34 0.04 270);
+  --input: oklch(0.34 0.04 270);
+  --primary: oklch(0.70 0.17 274);
+  --primary-foreground: oklch(0.20 0.03 270);  /* dark ink on the lighter indigo */
+  --accent: oklch(0.78 0.15 300);
+  --accent-foreground: oklch(0.20 0.03 270);
+  --ring: oklch(0.70 0.17 274);
+  --success: oklch(0.72 0.15 155);
+  --danger: oklch(0.70 0.18 25);
 }
 
-/* Expose tokens as Tailwind utilities (bg-background, text-foreground, ...) */
+/* Expose tokens as Tailwind utilities (bg-background, text-primary, ...) */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -58,9 +67,11 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
   --color-success: var(--success);
+  --color-positive: var(--success);
   --color-danger: var(--danger);
   --radius-xl2: var(--radius);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -69,10 +80,16 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: color-mix(in oklch, var(--primary) 25%, transparent);
+}
+
+/* Theme swap is a color crossfade only (cheap), and respects reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
   body {
-    transition: background-color 200ms ease, color 200ms ease;
+    transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out);
   }
 }
