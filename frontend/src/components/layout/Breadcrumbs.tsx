@@ -30,13 +30,13 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
   );
 }
 
-/** Compose a batch's display title from its structured fields. */
-export function batchTitle(b: {
-  program: string;
-  semester: number;
-  year: number;
-  section?: string | null;
-}): string {
-  const sec = b.section ? ` · ${b.section}` : "";
-  return `${b.program} · Sem ${b.semester}${sec} · ${b.year}`;
+/** Batch label = admission year range, e.g. "2022–2026". */
+export function batchTitle(b: { start_year?: number; end_year?: number; startYear?: number; endYear?: number }): string {
+  const s = b.start_year ?? b.startYear;
+  const e = b.end_year ?? b.endYear;
+  return `${s}–${e}`;
+}
+
+export function semesterTitle(n: number): string {
+  return `Semester ${n}`;
 }

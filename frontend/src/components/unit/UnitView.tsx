@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCanWrite } from "@/hooks/useRole";
-import { batchApi, courseApi, sessionApi, unitApi, type UnitDetail } from "@/lib/api";
+import { batchApi, courseApi, semesterApi, sessionApi, unitApi, type UnitDetail } from "@/lib/api";
 import type { Session } from "@/types";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -41,10 +41,14 @@ export function UnitView({ unitId }: { unitId: string }) {
         setDetail(d);
         try {
           const c = await courseApi.get(d.unit.course_id);
-          const b = await batchApi.get(c.course.batch_id);
+          const sem = await semesterApi.get(c.course.semester_id);
+          const dept = sem.department;
+          const b = dept ? await batchApi.get(dept.batch_id) : null;
           setCrumbs([
             { label: "Batches", href: "/dashboard" },
-            { label: batchTitle(b), href: `/batch/${b.id}` },
+            ...(b ? [{ label: batchTitle(b), href: `/batch/${b.id}` }] : []),
+            ...(dept ? [{ label: dept.name, href: `/department/${dept.id}` }] : []),
+            { label: `Semester ${sem.semester.number}`, href: `/semester/${sem.semester.id}` },
             { label: c.course.name, href: `/course/${c.course.id}` },
             { label: d.unit.name },
           ]);
@@ -76,7 +80,7 @@ export function UnitView({ unitId }: { unitId: string }) {
       <Aurora className="opacity-40" />
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">
         <Breadcrumbs items={crumbs} />
 
         <div className="mt-4">

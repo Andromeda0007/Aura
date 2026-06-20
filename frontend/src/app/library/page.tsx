@@ -43,12 +43,12 @@ export default function LibraryPage() {
     <div className="relative flex flex-1 flex-col">
       <Aurora className="opacity-40" />
       <AppHeader />
-      <div className="mx-auto w-full max-w-3xl px-6 pt-8">
+      <div className="mx-auto w-full px-6 pt-8 lg:px-[10%]">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Library</h1>
         <p className="mt-1 text-sm text-muted-foreground">Everything Aura has generated, in one place.</p>
       </div>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

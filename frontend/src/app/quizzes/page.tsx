@@ -114,7 +114,7 @@ export default function QuizzesPage() {
 
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full flex-1 px-6 py-10 lg:px-[10%]">
         <h2 className="font-display text-3xl font-semibold tracking-tight">Quizzes</h2>
         <p className="mt-1 text-muted-foreground">
           Every quiz you&apos;ve generated, with how your students did.

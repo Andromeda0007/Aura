@@ -7,20 +7,20 @@ import { toast } from "sonner";
 
 import { CourseCover } from "@/components/course/CourseCover";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { Breadcrumbs, batchTitle } from "@/components/layout/Breadcrumbs";
+import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcrumbs";
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCanWrite } from "@/hooks/useRole";
-import { batchApi, courseApi, unitApi, type CourseDetail } from "@/lib/api";
+import { batchApi, courseApi, semesterApi, unitApi, type CourseDetail } from "@/lib/api";
 
 export function CourseView({ courseId }: { courseId: string }) {
   const ready = useRequireAuth();
   const canWrite = useCanWrite();
   const [detail, setDetail] = useState<CourseDetail | null>(null);
-  const [crumbBatch, setCrumbBatch] = useState<{ id: string; label: string } | null>(null);
+  const [crumbs, setCrumbs] = useState<Crumb[]>([{ label: "Batches", href: "/dashboard" }]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -35,12 +35,22 @@ export function CourseView({ courseId }: { courseId: string }) {
   useEffect(() => {
     if (!ready) return;
     refresh()
-      .then((d) =>
-        batchApi
-          .get(d.course.batch_id)
-          .then((b) => setCrumbBatch({ id: b.id, label: batchTitle(b) }))
-          .catch(() => {}),
-      )
+      .then(async (d) => {
+        try {
+          const sem = await semesterApi.get(d.course.semester_id);
+          const dept = sem.department;
+          const b = dept ? await batchApi.get(dept.batch_id) : null;
+          setCrumbs([
+            { label: "Batches", href: "/dashboard" },
+            ...(b ? [{ label: batchTitle(b), href: `/batch/${b.id}` }] : []),
+            ...(dept ? [{ label: dept.name, href: `/department/${dept.id}` }] : []),
+            { label: `Semester ${sem.semester.number}`, href: `/semester/${sem.semester.id}` },
+            { label: d.course.name },
+          ]);
+        } catch {
+          setCrumbs([{ label: "Batches", href: "/dashboard" }, { label: d.course.name }]);
+        }
+      })
       .catch(() => toast.error("Course not found"));
   }, [ready, courseId]);
 
@@ -74,14 +84,8 @@ export function CourseView({ courseId }: { courseId: string }) {
       <Aurora className="opacity-40" />
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <Breadcrumbs
-          items={[
-            { label: "Batches", href: "/dashboard" },
-            ...(crumbBatch ? [{ label: crumbBatch.label, href: `/batch/${crumbBatch.id}` }] : []),
-            { label: course.name },
-          ]}
-        />
+      <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">
+        <Breadcrumbs items={crumbs} />
 
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <CourseCover coverKey={course.cover} className="h-16 w-24 shrink-0 rounded-xl" />

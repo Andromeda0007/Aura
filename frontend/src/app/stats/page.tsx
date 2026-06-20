@@ -83,12 +83,12 @@ export default function StatsPage() {
   return (
     <div className="flex flex-1 flex-col">
       <AppHeader />
-      <div className="mx-auto w-full max-w-5xl px-6 pt-8">
+      <div className="mx-auto w-full px-6 pt-8 lg:px-[10%]">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Stats</h1>
         <p className="mt-1 text-sm text-muted-foreground">How your classes are going.</p>
       </div>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">
         {empty ? (
           <div className="rounded-2xl border border-border bg-card p-12 text-center">
             <p className="font-medium">No data yet</p>

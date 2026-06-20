@@ -9,7 +9,7 @@ import { ResponseView } from "@/components/ai-panel/ResponseView";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcrumbs";
 import { Aurora } from "@/components/ui/aurora";
-import { batchApi, courseApi, sessionApi, unitApi } from "@/lib/api";
+import { batchApi, courseApi, semesterApi, sessionApi, unitApi } from "@/lib/api";
 import type { AIResponse } from "@/types";
 
 const SECTIONS: { type: string; label: string }[] = [
@@ -42,10 +42,14 @@ export function SessionHistoryView({ sessionId }: { sessionId: string }) {
           try {
             const u = await unitApi.get(s.unit_id);
             const c = await courseApi.get(u.unit.course_id);
-            const b = await batchApi.get(c.course.batch_id);
+            const sem = await semesterApi.get(c.course.semester_id);
+            const dept = sem.department;
+            const b = dept ? await batchApi.get(dept.batch_id) : null;
             setCrumbs([
               { label: "Batches", href: "/dashboard" },
-              { label: batchTitle(b), href: `/batch/${b.id}` },
+              ...(b ? [{ label: batchTitle(b), href: `/batch/${b.id}` }] : []),
+              ...(dept ? [{ label: dept.name, href: `/department/${dept.id}` }] : []),
+              { label: `Sem ${sem.semester.number}`, href: `/semester/${sem.semester.id}` },
               { label: c.course.name, href: `/course/${c.course.id}` },
               { label: u.unit.name, href: `/unit/${u.unit.id}` },
               { label: s.subject },

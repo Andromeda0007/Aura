@@ -122,7 +122,7 @@ export default function AssignmentsPage() {
       <Aurora className="opacity-40" />
       <AppHeader />
 
-      <main className="mx-auto grid w-full max-w-4xl flex-1 gap-8 px-6 py-10 lg:grid-cols-[1fr_20rem]">
+      <main className="mx-auto grid w-full flex-1 gap-8 px-6 py-10 lg:px-[10%] lg:grid-cols-[1fr_20rem]">
         <div>
           <h2 className="font-display text-2xl font-semibold tracking-tight">Homework</h2>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -63,16 +63,16 @@ export interface AdminUser {
   fullName: string;
   role: "admin" | "teacher" | "student";
   isActive: boolean;
-  batchIds: string[];
+  semesterIds: string[];
   createdAt: string | null;
 }
 export interface AdminStats {
   batches: {
     id: string;
-    program: string;
-    semester: number;
-    year: number;
-    section: string | null;
+    label: string;
+    startYear: number;
+    endYear: number;
+    departments: number;
     members: number;
     sessions: number;
     quizzes: number;
@@ -88,11 +88,11 @@ export const adminApi = {
     full_name: string;
     password: string;
     role: string;
-    batch_ids: string[];
+    semester_ids: string[];
   }) => api.post<AdminUser>("/admin/users", body).then((r) => r.data),
   updateUser: (
     id: string,
-    body: Partial<{ full_name: string; password: string; is_active: boolean; role: string; batch_ids: string[] }>,
+    body: Partial<{ full_name: string; password: string; is_active: boolean; role: string; semester_ids: string[] }>,
   ) => api.patch<AdminUser>(`/admin/users/${id}`, body).then((r) => r.data),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`).then(() => undefined),
   stats: () => api.get<AdminStats>("/admin/stats").then((r) => r.data),
@@ -211,33 +211,49 @@ export const liveApi = {
     api.post<{ answer: string }>(`/live/${code}/ask`, { question }).then((r) => r.data),
 };
 
-// ---- Academic hierarchy: Batch -> Course -> Unit -> Session ----
+// ---- Academic tree: Batch -> Department -> Semester -> Course -> Unit -> Session ----
 export interface Batch {
   id: string;
-  program: string;
-  semester: number;
-  year: number;
-  section: string | null;
-  roster: { name: string }[];
+  start_year: number;
+  end_year: number;
   archived: boolean;
   created_at: string;
 }
 export interface BatchSummary {
   id: string;
-  program: string;
-  semester: number;
-  year: number;
-  section: string | null;
+  startYear: number;
+  endYear: number;
   archived: boolean;
-  courses: number;
+  departments: number;
   sessions: number;
   tokensUsed: number;
   createdAt: string | null;
 }
 
-export interface Course {
+export interface Department {
   id: string;
   batch_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+export interface DepartmentSummary extends Department {
+  semesters: number;
+}
+export interface Semester {
+  id: string;
+  department_id: string;
+  number: number;
+  created_at: string;
+}
+export interface DepartmentDetail {
+  department: Department;
+  semesters: Semester[];
+}
+
+export interface Course {
+  id: string;
+  semester_id: string;
   name: string;
   professor: string;
   cover: string;
@@ -251,6 +267,17 @@ export interface CourseSummary extends Course {
   sessions: number;
   tokensUsed: number;
   items: number;
+}
+export interface SemesterDetail {
+  semester: Semester;
+  department: Department | null;
+  courses: CourseSummary[];
+}
+export interface MySemester {
+  id: string;
+  number: number;
+  department: string;
+  batch: string;
 }
 export interface Unit {
   id: string;
@@ -314,22 +341,36 @@ export const assignmentApi = {
 export const batchApi = {
   list: () => api.get<BatchSummary[]>("/batches").then((r) => r.data),
   get: (id: string) => api.get<Batch>(`/batches/${id}`).then((r) => r.data),
-  create: (body: { program: string; semester: number; year: number; section?: string | null }) =>
+  create: (body: { start_year: number; end_year: number }) =>
     api.post<Batch>("/batches", body).then((r) => r.data),
-  update: (
-    id: string,
-    body: Partial<{ program: string; semester: number; year: number; section: string | null; roster: { name: string }[]; archived: boolean }>,
-  ) => api.patch<Batch>(`/batches/${id}`, body).then((r) => r.data),
+  update: (id: string, body: Partial<{ start_year: number; end_year: number; archived: boolean }>) =>
+    api.patch<Batch>(`/batches/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.delete(`/batches/${id}`).then(() => undefined),
   stats: (id: string) => api.get<LevelStats>(`/batches/${id}/stats`).then((r) => r.data),
 };
 
-export const courseApi = {
+export const departmentApi = {
   list: (batchId: string) =>
-    api.get<CourseSummary[]>(`/courses?batch_id=${batchId}`).then((r) => r.data),
+    api.get<DepartmentSummary[]>(`/departments?batch_id=${batchId}`).then((r) => r.data),
+  get: (id: string) => api.get<DepartmentDetail>(`/departments/${id}`).then((r) => r.data),
+  create: (body: { batch_id: string; name: string; color?: string }) =>
+    api.post<Department>("/departments", body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/departments/${id}`).then(() => undefined),
+  stats: (id: string) => api.get<LevelStats>(`/departments/${id}/stats`).then((r) => r.data),
+};
+
+export const semesterApi = {
+  get: (id: string) => api.get<SemesterDetail>(`/semesters/${id}`).then((r) => r.data),
+  mine: () => api.get<MySemester[]>("/semesters/mine").then((r) => r.data),
+  stats: (id: string) => api.get<LevelStats>(`/semesters/${id}/stats`).then((r) => r.data),
+};
+
+export const courseApi = {
+  list: (semesterId: string) =>
+    api.get<CourseSummary[]>(`/courses?semester_id=${semesterId}`).then((r) => r.data),
   get: (id: string) => api.get<CourseDetail>(`/courses/${id}`).then((r) => r.data),
   create: (body: {
-    batch_id: string;
+    semester_id: string;
     name: string;
     professor?: string;
     cover?: string;
@@ -337,7 +378,7 @@ export const courseApi = {
     start_date?: string | null;
     end_date?: string | null;
   }) => api.post<Course>("/courses", body).then((r) => r.data),
-  update: (id: string, body: Partial<Omit<Course, "id" | "batch_id" | "created_at">>) =>
+  update: (id: string, body: Partial<Omit<Course, "id" | "semester_id" | "created_at">>) =>
     api.patch<Course>(`/courses/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.delete(`/courses/${id}`).then(() => undefined),
   stats: (id: string) => api.get<LevelStats>(`/courses/${id}/stats`).then((r) => r.data),
