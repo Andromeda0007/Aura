@@ -97,7 +97,7 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           onClick={toggleGrid}
           aria-label="Graph paper grid"
           title="Graph paper grid"
-          className={`grid h-8 w-8 place-items-center rounded-lg transition-colors ${grid ? "bg-primary/15 text-primary" : "hover:bg-muted"}`}
+          className={`grid h-9 w-9 place-items-center rounded-lg transition-colors ${grid ? "bg-primary/15 text-primary" : "hover:bg-muted"}`}
         >
           <Grid3x3 className="h-4 w-4" />
         </button>
@@ -106,7 +106,7 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           onClick={cornellTemplate}
           aria-label="Cornell notes template"
           title="Cornell notes template"
-          className="grid h-8 w-8 place-items-center rounded-lg transition-colors hover:bg-muted"
+          className="grid h-9 w-9 place-items-center rounded-lg transition-colors hover:bg-muted"
         >
           <LayoutTemplate className="h-4 w-4" />
         </button>
@@ -115,7 +115,7 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           onClick={clearBoard}
           aria-label="Clear board"
           title="Clear board"
-          className="grid h-8 w-8 place-items-center rounded-lg transition-colors hover:bg-muted hover:text-danger"
+          className="grid h-9 w-9 place-items-center rounded-lg transition-colors hover:bg-muted hover:text-danger"
         >
           <Trash2 className="h-4 w-4" />
         </button>

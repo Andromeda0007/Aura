@@ -117,3 +117,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Visible focus everywhere (WCAG AA, keyboard nav). :where() keeps specificity 0
+   so components can still opt into a custom ring; this guarantees nothing is
+   focusable-but-invisible. */
+:where(a, button, [role="button"], [tabindex]:not([tabindex="-1"]), summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

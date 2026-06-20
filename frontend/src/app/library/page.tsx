@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Library, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -73,9 +73,17 @@ export default function LibraryPage() {
 
         <div className="mt-6 space-y-2">
           {filtered.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              {items.length === 0 ? "Nothing here yet — generate content in a session." : "No matches."}
-            </p>
+            <div className="rounded-2xl border border-dashed border-border p-10 text-center">
+              <Library className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 font-medium">
+                {items.length === 0 ? "Nothing here yet" : "No matches"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {items.length === 0
+                  ? "Quizzes, summaries, and diagrams you generate in a session will collect here."
+                  : "Try a different search or filter."}
+              </p>
+            </div>
           ) : (
             filtered.map((it) => {
               const isOpen = open === it.commandId;
