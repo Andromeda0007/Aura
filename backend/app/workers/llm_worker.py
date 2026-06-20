@@ -13,6 +13,7 @@ from app.core.database import session_scope
 from app.models.command import Command
 from app.models.enums import CommandIntent, CommandStatus
 from app.models.quiz import Quiz
+from app.models.session import Session
 from app.services.ai_service import ai_service
 from app.services.context_manager import get_context
 from app.websocket.connection import broadcast_to_session
@@ -58,6 +59,9 @@ async def process_command(session_id: str, raw_command: str) -> None:
 
     intent = await ai_service.classify_intent(command)
     context = get_context(session_id)
+    with session_scope() as db:
+        sess = db.get(Session, uuid.UUID(session_id))
+        language = sess.language if sess else "English"
     logger.info("llm.classified", session_id=session_id, intent=intent.value, command=command[:60])
 
     data: dict
@@ -67,7 +71,7 @@ async def process_command(session_id: str, raw_command: str) -> None:
 
     try:
         if intent == CommandIntent.GENERATE_QUIZ:
-            data = await ai_service.generate_quiz(context)
+            data = await ai_service.generate_quiz(context, language=language)
             if "questions" in data:
                 with session_scope() as db:
                     quiz = Quiz(session_id=uuid.UUID(session_id), command_id=command_id, quiz_data=data)
@@ -75,17 +79,17 @@ async def process_command(session_id: str, raw_command: str) -> None:
                     db.flush()
                     data = {**data, "shareCode": quiz.share_code}
         elif intent == CommandIntent.SUMMARIZE:
-            data = await ai_service.summarize(context)
+            data = await ai_service.summarize(context, language=language)
         elif intent == CommandIntent.EXPLAIN:
-            data = await ai_service.explain(context, command)
+            data = await ai_service.explain(context, command, language=language)
         elif intent == CommandIntent.GENERATE_EXAMPLE:
-            data = await ai_service.generate_example(context, command)
+            data = await ai_service.generate_example(context, command, language=language)
         elif intent == CommandIntent.GENERATE_DIAGRAM:
-            data = await ai_service.generate_diagram(context, command)
+            data = await ai_service.generate_diagram(context, command, language=language)
         elif intent == CommandIntent.FORMAT_BOARD:
             data = await ai_service.format_board(context)
         else:  # ANSWER_QUESTION and OTHER both answer the query
-            data = await ai_service.answer_question(context, command)
+            data = await ai_service.answer_question(context, command, language=language)
     except Exception as exc:  # noqa: BLE001
         logger.error("llm.execute_failed", error=str(exc), intent=intent.value)
         data, status, error = {"error": "Generation failed. Please try again."}, CommandStatus.FAILED, str(exc)

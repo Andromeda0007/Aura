@@ -122,7 +122,7 @@ class AIService:
             return CommandIntent.OTHER
 
     # ---- generation ----
-    async def generate_quiz(self, context: str) -> dict[str, Any]:
+    async def generate_quiz(self, context: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Using ONLY the lecture context, create a quiz of "
             "EXACTLY 5 multiple-choice questions grounded in what was taught. "
@@ -130,7 +130,7 @@ class AIService:
             '"options": [str, str, str, str], "answer_index": int (0-3), "explanation": str}]}. '
             "Exactly 5 questions; exactly 4 options each."
         )
-        raw = await self._complete("smart", system, f"Lecture context:\n{context}")
+        raw = await self._complete("smart", self._with_language(system, language), f"Lecture context:\n{context}")
         data = self._parse_json(raw)
         if not data or not isinstance(data.get("questions"), list) or not data["questions"]:
             return {"error": "Could not generate a valid quiz. Please try again."}
@@ -151,6 +151,16 @@ class AIService:
             return {"error": "Could not generate a valid quiz. Please try again."}
         return {"questions": questions}
 
+    @staticmethod
+    def _with_language(system: str, language: str | None) -> str:
+        if language and language.lower() != "english":
+            return (
+                system
+                + f" Write all human-readable text values in {language} "
+                "(keep JSON keys and any code/Mermaid syntax in English/ASCII)."
+            )
+        return system
+
     async def _generate_json(self, tier: str, system: str, user: str) -> dict[str, Any]:
         raw = await self._complete(tier, system, user)
         data = self._parse_json(raw)
@@ -158,45 +168,53 @@ class AIService:
             return {"error": "Generation failed. Please try again."}
         return data
 
-    async def summarize(self, context: str) -> dict[str, Any]:
+    async def summarize(self, context: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Summarize the lecture context in 200-500 words, "
             "clear and well structured. Respond with ONLY JSON: "
             '{"summary": str, "keyPoints": [str, ...]}.'
         )
-        return await self._generate_json("smart", system, f"Lecture context:\n{context}")
+        return await self._generate_json("smart", self._with_language(system, language), f"Lecture context:\n{context}")
 
-    async def explain(self, context: str, command: str) -> dict[str, Any]:
+    async def explain(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Explain the requested concept clearly using the lecture "
             'context. Respond with ONLY JSON: {"explanation": str, "nextTopics": [str, str, str]}.'
         )
-        return await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+        return await self._generate_json(
+            "smart", self._with_language(system, language), f"Request: {command}\n\nContext:\n{context}"
+        )
 
-    async def generate_example(self, context: str, command: str) -> dict[str, Any]:
+    async def generate_example(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Produce ONE worked example relevant to the lecture. "
             'Respond with ONLY JSON: {"problem": str, "solution": str, "correct_answer": str}.'
         )
-        return await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+        return await self._generate_json(
+            "smart", self._with_language(system, language), f"Request: {command}\n\nContext:\n{context}"
+        )
 
-    async def generate_diagram(self, context: str, command: str) -> dict[str, Any]:
+    async def generate_diagram(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Create a Mermaid diagram (flowchart/sequence/graph) that "
             "illustrates the requested concept from the lecture. Use valid Mermaid syntax. "
             'Respond with ONLY JSON: {"mermaid": str, "title": str}.'
         )
-        data = await self._generate_json("smart", system, f"Request: {command}\n\nContext:\n{context}")
+        data = await self._generate_json(
+            "smart", self._with_language(system, language), f"Request: {command}\n\nContext:\n{context}"
+        )
         if "mermaid" in data and isinstance(data["mermaid"], str):
             data["mermaid"] = data["mermaid"].strip().removeprefix("```mermaid").removeprefix("```").removesuffix("```").strip()
         return data
 
-    async def answer_question(self, context: str, command: str) -> dict[str, Any]:
+    async def answer_question(self, context: str, command: str, language: str | None = None) -> dict[str, Any]:
         system = (
             "You are an expert teacher. Answer the question using the lecture context. "
             'Respond with ONLY JSON: {"answer": str, "feedback": str}.'
         )
-        return await self._generate_json("smart", system, f"Question: {command}\n\nContext:\n{context}")
+        return await self._generate_json(
+            "smart", self._with_language(system, language), f"Question: {command}\n\nContext:\n{context}"
+        )
 
     # ---- teacher superpowers (on-demand tools) ----
     async def differentiate(self, content: str, audience: str) -> dict[str, Any]:

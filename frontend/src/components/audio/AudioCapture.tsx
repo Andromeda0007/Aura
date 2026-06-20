@@ -34,7 +34,15 @@ const WAKE_RE =
 
 /** Browser Web Speech capture. Detects the "Hey Aura" wake phrase -> voice_command;
  *  otherwise streams finalized text as transcript_text. Renders nothing. */
-export function AudioCapture({ sessionId, enabled }: { sessionId: string; enabled: boolean }) {
+export function AudioCapture({
+  sessionId,
+  enabled,
+  lang = "en-US",
+}: {
+  sessionId: string;
+  enabled: boolean;
+  lang?: string;
+}) {
   const addTranscript = useSessionStore((s) => s.addTranscript);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const enabledRef = useRef(enabled);
@@ -63,7 +71,7 @@ export function AudioCapture({ sessionId, enabled }: { sessionId: string; enable
     const rec = new Ctor();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = "en-US";
+    rec.lang = lang;
 
     rec.onresult = (event) => {
       let interim = "";
@@ -124,7 +132,7 @@ export function AudioCapture({ sessionId, enabled }: { sessionId: string; enable
       rec.onend = null;
       rec.stop();
     };
-  }, [enabled, sessionId, addTranscript]);
+  }, [enabled, sessionId, addTranscript, lang]);
 
   return null;
 }

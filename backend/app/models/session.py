@@ -31,6 +31,8 @@ class Session(Base):
         UUID(as_uuid=True), ForeignKey("courses.id", ondelete="SET NULL"), index=True, nullable=True
     )
     subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    # Language Aura transcribes + generates in (human label, e.g. "English", "Spanish").
+    language: Mapped[str] = mapped_column(String(40), default="English", nullable=False)
     # Short public code students type/scan to join the live session (read-only).
     join_code: Mapped[str] = mapped_column(
         String(12), unique=True, index=True, default=generate_join_code, nullable=False

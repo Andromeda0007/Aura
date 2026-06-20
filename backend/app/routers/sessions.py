@@ -62,6 +62,7 @@ def create_session(
         teacher_id=teacher.id,
         course_id=course_id,
         subject=body.subject,
+        language=body.language or "English",
         status=SessionStatus.ACTIVE,
     )
     db.add(sess)
@@ -78,15 +79,20 @@ def update_session(
     db: DBSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ) -> SessionOut:
-    """Currently only (re)assigns the session to one of the teacher's courses."""
+    """(Re)assign the session's course and/or language. Only fields the client
+    actually sends are changed (so a language-only update keeps the course)."""
     sess = _owned_session(session_id, db, teacher)
-    if body.course_id is not None:
-        course = db.get(Course, body.course_id)
-        if course is None or course.teacher_id != teacher.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-        sess.course_id = course.id
-    else:
-        sess.course_id = None
+    fields = body.model_fields_set
+    if "course_id" in fields:
+        if body.course_id is not None:
+            course = db.get(Course, body.course_id)
+            if course is None or course.teacher_id != teacher.id:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+            sess.course_id = course.id
+        else:
+            sess.course_id = None
+    if "language" in fields and body.language:
+        sess.language = body.language
     db.commit()
     db.refresh(sess)
     return SessionOut.model_validate(sess)

@@ -27,6 +27,7 @@ export interface Session {
   id: string;
   teacher_id: string;
   subject: string;
+  language: string;
   join_code: string;
   status: SessionStatus;
   active_buffer_tokens: number;

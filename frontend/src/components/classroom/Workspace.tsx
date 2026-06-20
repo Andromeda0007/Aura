@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { sessionApi } from "@/lib/api";
+import { LANGUAGES, localeFor } from "@/lib/languages";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -128,6 +129,16 @@ export function Workspace({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, sessionId]);
 
+  async function changeLanguage(language: string) {
+    try {
+      const updated = await sessionApi.setLanguage(sessionId, language);
+      setSession(updated);
+      toast.success(`Aura now works in ${language}`);
+    } catch {
+      toast.error("Could not change language");
+    }
+  }
+
   async function toggleTeachMode() {
     const next = !teachMode;
     setTeachMode(next);
@@ -227,7 +238,11 @@ export function Workspace({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex h-dvh flex-col">
-      <AudioCapture sessionId={sessionId} enabled={isRecording} />
+      <AudioCapture
+        sessionId={sessionId}
+        enabled={isRecording}
+        lang={localeFor(currentSession?.language ?? "English")}
+      />
       {/* Top bar */}
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -260,6 +275,19 @@ export function Workspace({ sessionId }: { sessionId: string }) {
               {compression?.status === "started" ? " · compressing…" : ""}
             </span>
           )}
+          <select
+            aria-label="Class language"
+            title="Class language"
+            value={currentSession?.language ?? "English"}
+            onChange={(e) => changeLanguage(e.target.value)}
+            className="hidden h-9 rounded-full border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:block"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.label} value={l.label}>
+                {l.label}
+              </option>
+            ))}
+          </select>
           <Button
             variant={isRecording ? "danger" : "outline"} size="sm"
             onClick={() => setRecording(!isRecording)}

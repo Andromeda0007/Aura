@@ -65,6 +65,8 @@ export const sessionApi = {
     api.post<Session>("/sessions", { subject, course_id: courseId ?? null }).then((r) => r.data),
   setCourse: (id: string, courseId: string | null) =>
     api.patch<Session>(`/sessions/${id}`, { course_id: courseId }).then((r) => r.data),
+  setLanguage: (id: string, language: string) =>
+    api.patch<Session>(`/sessions/${id}`, { language }).then((r) => r.data),
   list: () => api.get<Session[]>("/sessions").then((r) => r.data),
   get: (id: string) => api.get<Session>(`/sessions/${id}`).then((r) => r.data),
   end: (id: string) => api.post<Session>(`/sessions/${id}/end`).then((r) => r.data),

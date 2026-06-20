@@ -46,5 +46,5 @@ async def ask_tutor(join_code: str, body: AskIn, db: DBSession = Depends(get_db)
         .limit(40)
     ).all()
     context = "\n".join(reversed(list(rows))) or f"This is a class about {sess.subject}."
-    result = await ai_service.answer_question(context, body.question)
+    result = await ai_service.answer_question(context, body.question, language=sess.language)
     return {"answer": result.get("answer") or result.get("error") or "I'm not sure yet."}
