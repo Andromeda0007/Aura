@@ -173,6 +173,19 @@ export interface CourseDetail {
   sessions: Session[];
 }
 
+export const toolsApi = {
+  differentiate: (content: string, level: string) =>
+    api.post("/tools/differentiate", { content, level }).then((r) => r.data),
+  lessonPlan: (topic: string, grade: string, minutes: number) =>
+    api.post("/tools/lesson-plan", { topic, grade, minutes }).then((r) => r.data),
+  worksheet: (topic: string, count: number) =>
+    api.post("/tools/worksheet", { topic, count }).then((r) => r.data),
+  rubric: (assignment: string) => api.post("/tools/rubric", { assignment }).then((r) => r.data),
+  grade: (question: string, guidance: string, response: string) =>
+    api.post("/tools/grade", { question, guidance, response }).then((r) => r.data),
+  standards: (content: string) => api.post("/tools/standards", { content }).then((r) => r.data),
+};
+
 export const courseApi = {
   list: () => api.get<CourseSummary[]>("/courses").then((r) => r.data),
   get: (id: string) => api.get<CourseDetail>(`/courses/${id}`).then((r) => r.data),
