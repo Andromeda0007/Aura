@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ export default function DashboardPage() {
 
   return (
     <div className="relative flex flex-1 flex-col">
+      <OnboardingTour />
       <Aurora className="opacity-50" />
 
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
