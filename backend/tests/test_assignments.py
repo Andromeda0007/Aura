@@ -1,13 +1,10 @@
 import uuid
 
-from fastapi.testclient import TestClient
-
 from app.core.database import SessionLocal
-from app.main import app
+from app.models.enums import UserRole
 from app.models.quiz import Quiz
 from app.models.session import Session
-
-client = TestClient(app)
+from tests.util import auth, client, make_user
 
 QUIZ_DATA = {
     "questions": [
@@ -17,19 +14,10 @@ QUIZ_DATA = {
 }
 
 
-def _teacher() -> tuple[str, str]:
-    email = f"a_{uuid.uuid4().hex[:8]}@gmail.com"
-    r = client.post(
-        "/auth/signup",
-        json={"email": email, "password": "supersecret1", "full_name": "A", "role": "teacher"},
-    )
-    return r.json()["user"]["id"], r.json()["tokens"]["access_token"]
-
-
-def _seed_quiz(teacher_id: str) -> str:
+def _seed_quiz(owner_id: str) -> str:
     db = SessionLocal()
     try:
-        sess = Session(teacher_id=uuid.UUID(teacher_id), subject="HW")
+        sess = Session(teacher_id=uuid.UUID(owner_id), subject="HW")
         db.add(sess)
         db.flush()
         quiz = Quiz(session_id=sess.id, quiz_data=QUIZ_DATA)
@@ -41,8 +29,8 @@ def _seed_quiz(teacher_id: str) -> str:
 
 
 def test_assignment_flow():
-    tid, token = _teacher()
-    h = {"Authorization": f"Bearer {token}"}
+    tid, token = make_user(UserRole.TEACHER)
+    h = auth(token)
     quiz_id = _seed_quiz(tid)
 
     created = client.post(

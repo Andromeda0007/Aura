@@ -28,6 +28,12 @@ async def lifespan(app: FastAPI):
         ai_enabled=settings.ai_enabled,
         version=settings.version,
     )
+    try:
+        from app.core.seed import seed_admin
+
+        seed_admin()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("aura.seed_failed", error=str(exc))
     yield
     logger.info("aura.shutdown")
 
@@ -73,6 +79,7 @@ def create_app() -> FastAPI:
 
     # Routers
     from app.routers import (
+        admin,
         assignments,
         auth,
         batches,
@@ -88,6 +95,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth.router)
+    app.include_router(admin.router)
     app.include_router(batches.router)
     app.include_router(units.router)
     app.include_router(sessions.router)

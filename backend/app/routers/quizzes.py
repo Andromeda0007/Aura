@@ -8,8 +8,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import accessible_session_ids, assert_batch_access, batch_of_session
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user
 from app.models.quiz import Quiz
 from app.models.quiz_attempt import QuizAttempt
 from app.models.session import Session
@@ -25,14 +26,15 @@ class AttemptIn(BaseModel):
 
 @router.get("")
 def list_quizzes(
-    db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)
+    db: DBSession = Depends(get_db), user: User = Depends(get_current_user)
 ) -> list[dict]:
-    """Teacher's quizzes with attempt counts."""
+    """Quizzes (with attempt counts) across the batches the user can access."""
+    ids = accessible_session_ids(db, user)
     rows = db.execute(
         select(Quiz, Session.subject, func.count(QuizAttempt.id))
         .join(Session, Quiz.session_id == Session.id)
         .outerjoin(QuizAttempt, QuizAttempt.quiz_id == Quiz.id)
-        .where(Session.teacher_id == teacher.id)
+        .where(Quiz.session_id.in_(ids))
         .group_by(Quiz.id, Session.subject)
         .order_by(Quiz.created_at.desc())
     ).all()
@@ -88,17 +90,16 @@ def submit_attempt(share_code: str, body: AttemptIn, db: DBSession = Depends(get
 def quiz_results(
     quiz_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    """Teacher analytics for one quiz (must own it)."""
+    """Analytics for one quiz (must have access to its batch)."""
     row = db.execute(
         select(Quiz, Session).join(Session, Quiz.session_id == Session.id).where(Quiz.id == quiz_id)
     ).first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Quiz not found")
     quiz, sess = row
-    if sess.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your quiz")
+    assert_batch_access(db, user, batch_of_session(db, sess.id))
 
     attempts = list(
         db.scalars(

@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.core.deps import get_current_teacher
+from app.core.deps import require_staff
 from app.models.user import User
 from app.services.ai_service import ai_service
 
@@ -53,31 +53,31 @@ class StandardsIn(BaseModel):
 
 
 @router.post("/differentiate")
-async def differentiate(body: DifferentiateIn, _: User = Depends(get_current_teacher)) -> dict:
+async def differentiate(body: DifferentiateIn, _: User = Depends(require_staff)) -> dict:
     audience = AUDIENCE.get(body.level, AUDIENCE["middle"])
     return await ai_service.differentiate(body.content, audience)
 
 
 @router.post("/lesson-plan")
-async def lesson_plan(body: LessonPlanIn, _: User = Depends(get_current_teacher)) -> dict:
+async def lesson_plan(body: LessonPlanIn, _: User = Depends(require_staff)) -> dict:
     return await ai_service.lesson_plan(body.topic, body.grade, body.minutes)
 
 
 @router.post("/worksheet")
-async def worksheet(body: WorksheetIn, _: User = Depends(get_current_teacher)) -> dict:
+async def worksheet(body: WorksheetIn, _: User = Depends(require_staff)) -> dict:
     return await ai_service.worksheet(body.topic, body.count)
 
 
 @router.post("/rubric")
-async def rubric(body: RubricIn, _: User = Depends(get_current_teacher)) -> dict:
+async def rubric(body: RubricIn, _: User = Depends(require_staff)) -> dict:
     return await ai_service.rubric(body.assignment)
 
 
 @router.post("/grade")
-async def grade(body: GradeIn, _: User = Depends(get_current_teacher)) -> dict:
+async def grade(body: GradeIn, _: User = Depends(require_staff)) -> dict:
     return await ai_service.grade_open(body.question, body.guidance, body.response)
 
 
 @router.post("/standards")
-async def standards(body: StandardsIn, _: User = Depends(get_current_teacher)) -> dict:
+async def standards(body: StandardsIn, _: User = Depends(require_staff)) -> dict:
     return await ai_service.standards(body.content)

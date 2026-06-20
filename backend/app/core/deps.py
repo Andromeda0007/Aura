@@ -38,3 +38,16 @@ def get_current_teacher(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.TEACHER:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Teacher role required")
     return user
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin role required")
+    return user
+
+
+def require_staff(user: User = Depends(get_current_user)) -> User:
+    """Admin or teacher — the write-capable roles."""
+    if user.role not in (UserRole.ADMIN, UserRole.TEACHER):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Staff role required")
+    return user

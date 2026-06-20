@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import assert_batch_access
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user, require_staff
 from app.core.hierarchy import course_session_ids
-from app.models.batch import Batch
 from app.models.command import Command
 from app.models.course import Course
 from app.models.enums import CommandStatus
@@ -24,19 +24,10 @@ from app.routers.stats import aggregate_stats
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
-def _owned_batch(batch_id: uuid.UUID, db: DBSession, teacher: User) -> Batch:
-    batch = db.get(Batch, batch_id)
-    if batch is None or batch.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
-    return batch
-
-
-def _owned_course(course_id: uuid.UUID, db: DBSession, teacher: User) -> Course:
+def _course_or_404(course_id: uuid.UUID, db: DBSession) -> Course:
     course = db.get(Course, course_id)
     if course is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-    if course.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your course")
     return course
 
 
@@ -57,11 +48,11 @@ def _counts(db: DBSession, course_id: uuid.UUID) -> dict:
 
 @router.post("", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
 def create_course(
-    body: CourseCreate, db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)
+    body: CourseCreate, db: DBSession = Depends(get_db), user: User = Depends(require_staff)
 ) -> CourseOut:
-    _owned_batch(body.batch_id, db, teacher)
+    assert_batch_access(db, user, body.batch_id, write=True)
     course = Course(
-        teacher_id=teacher.id,
+        teacher_id=user.id,
         batch_id=body.batch_id,
         name=body.name,
         professor=body.professor,
@@ -80,14 +71,12 @@ def create_course(
 def list_courses(
     batch_id: uuid.UUID = Query(...),
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> list[dict]:
-    _owned_batch(batch_id, db, teacher)
+    assert_batch_access(db, user, batch_id)
     courses = list(
         db.scalars(
-            select(Course)
-            .where(Course.batch_id == batch_id)
-            .order_by(Course.created_at.desc())
+            select(Course).where(Course.batch_id == batch_id).order_by(Course.created_at.desc())
         ).all()
     )
     unit_counts = dict(
@@ -111,9 +100,10 @@ def list_courses(
 def get_course(
     course_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    course = _owned_course(course_id, db, teacher)
+    course = _course_or_404(course_id, db)
+    assert_batch_access(db, user, course.batch_id)
     units = list(
         db.scalars(
             select(Unit).where(Unit.course_id == course.id).order_by(Unit.order, Unit.created_at)
@@ -141,9 +131,10 @@ def update_course(
     course_id: uuid.UUID,
     body: CourseUpdate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> CourseOut:
-    course = _owned_course(course_id, db, teacher)
+    course = _course_or_404(course_id, db)
+    assert_batch_access(db, user, course.batch_id, write=True)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(course, key, value)
     db.commit()
@@ -155,10 +146,11 @@ def update_course(
 def delete_course(
     course_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> Response:
-    course = _owned_course(course_id, db, teacher)
-    db.delete(course)  # cascades to units -> sessions
+    course = _course_or_404(course_id, db)
+    assert_batch_access(db, user, course.batch_id, write=True)
+    db.delete(course)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -167,7 +159,8 @@ def delete_course(
 def course_stats(
     course_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    _owned_course(course_id, db, teacher)
+    course = _course_or_404(course_id, db)
+    assert_batch_access(db, user, course.batch_id)
     return aggregate_stats(db, course_session_ids(db, course_id))

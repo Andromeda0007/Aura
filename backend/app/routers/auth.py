@@ -15,17 +15,14 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
     verify_password,
 )
-from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
     ProfileUpdate,
     RefreshRequest,
-    SignupRequest,
     TokenPair,
     UserOut,
 )
@@ -37,26 +34,6 @@ logger = get_logger("aura.auth")
 def _tokens_for(user: User) -> TokenPair:
     sub = str(user.id)
     return TokenPair(access_token=create_access_token(sub), refresh_token=create_refresh_token(sub))
-
-
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(body: SignupRequest, db: DBSession = Depends(get_db)) -> AuthResponse:
-    exists = db.scalar(select(User).where(User.email == body.email.lower()))
-    if exists:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
-    # Defense-in-depth: signup always creates a teacher. The client-supplied role
-    # is ignored so a user can never self-assign admin/elevated roles.
-    user = User(
-        email=body.email.lower(),
-        password_hash=hash_password(body.password),
-        full_name=body.full_name,
-        role=UserRole.TEACHER,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    logger.info("auth.signup", user_id=str(user.id), role=user.role.value)
-    return AuthResponse(user=UserOut.model_validate(user), tokens=_tokens_for(user))
 
 
 @router.post("/login", response_model=AuthResponse)

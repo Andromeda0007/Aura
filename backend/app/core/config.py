@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     gemini_api_key: str = ""
 
+    # Seeded bootstrap admin (first admin only; admins manage admins after).
+    admin_email: str = "admin@aura.app"
+    admin_password: str = "ChangeMe!2026"
+    admin_name: str = "Ankit Kumar"
+
     # CORS
     allowed_origins: str = "http://localhost:3000"
 

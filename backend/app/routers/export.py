@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import assert_batch_access, batch_of_session
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user
 from app.models.command import Command
 from app.models.enums import CommandStatus
 from app.models.session import Session
@@ -44,13 +45,12 @@ def _build_markdown(sess: Session, transcripts: list[Transcript], commands: list
 def export_session(
     session_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> Response:
     sess = db.get(Session, session_id)
     if sess is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
-    if sess.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your session")
+    assert_batch_access(db, user, batch_of_session(db, session_id))
 
     transcripts = db.scalars(
         select(Transcript).where(Transcript.session_id == session_id).order_by(Transcript.timestamp)

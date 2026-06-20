@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import accessible_session_ids
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user
 from app.models.command import Command
 from app.models.quiz import Quiz
 from app.models.quiz_attempt import QuizAttempt
@@ -18,12 +19,10 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 @router.get("/overview")
-def overview(db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)) -> dict:
-    sub = select(Session.id).where(Session.teacher_id == teacher.id).scalar_subquery()
+def overview(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    sub = accessible_session_ids(db, user)
 
-    total_sessions = db.scalar(
-        select(func.count()).select_from(Session).where(Session.teacher_id == teacher.id)
-    )
+    total_sessions = len(sub)
     total_commands = db.scalar(select(func.count()).select_from(Command).where(Command.session_id.in_(sub)))
     total_quizzes = db.scalar(select(func.count()).select_from(Quiz).where(Quiz.session_id.in_(sub)))
     total_transcripts = db.scalar(
@@ -60,11 +59,11 @@ def overview(db: DBSession = Depends(get_db), teacher: User = Depends(get_curren
 
 
 @router.get("/activity")
-def activity(db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)) -> dict:
-    sub = select(Session.id).where(Session.teacher_id == teacher.id).scalar_subquery()
+def activity(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    sub = accessible_session_ids(db, user)
     sess_rows = db.execute(
         select(func.date(Session.created_at), func.count())
-        .where(Session.teacher_id == teacher.id)
+        .where(Session.id.in_(sub))
         .group_by(func.date(Session.created_at))
     ).all()
     cmd_rows = db.execute(
@@ -80,10 +79,10 @@ def activity(db: DBSession = Depends(get_db), teacher: User = Depends(get_curren
 
 
 @router.get("/deep")
-def deep(db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)) -> dict:
+def deep(db: DBSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
     """Per-subject activity, per-quiz performance, and hardest concepts."""
-    mine = Session.teacher_id == teacher.id
-    sub = select(Session.id).where(mine).scalar_subquery()
+    sub = accessible_session_ids(db, user)
+    mine = Session.id.in_(sub)
 
     # --- per subject ---
     sess_by_subj = dict(

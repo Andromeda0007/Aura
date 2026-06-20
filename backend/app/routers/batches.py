@@ -1,4 +1,4 @@
-"""Batches (cohort/term) — top of the academic hierarchy, owned by a teacher."""
+"""Batches (cohort/term) — admin creates/manages; teachers/students access by membership."""
 from __future__ import annotations
 
 import uuid
@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import accessible_batch_ids, assert_batch_access
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user, require_admin
 from app.core.hierarchy import batch_session_ids
 from app.models.batch import Batch
 from app.models.command import Command
@@ -20,21 +21,12 @@ from app.routers.stats import aggregate_stats
 router = APIRouter(prefix="/batches", tags=["batches"])
 
 
-def _owned_batch(batch_id: uuid.UUID, db: DBSession, teacher: User) -> Batch:
-    batch = db.get(Batch, batch_id)
-    if batch is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
-    if batch.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your batch")
-    return batch
-
-
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
 def create_batch(
-    body: BatchCreate, db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)
+    body: BatchCreate, db: DBSession = Depends(get_db), admin: User = Depends(require_admin)
 ) -> BatchOut:
     batch = Batch(
-        teacher_id=teacher.id,
+        created_by=admin.id,
         program=body.program,
         semester=body.semester,
         year=body.year,
@@ -49,17 +41,20 @@ def create_batch(
 
 @router.get("")
 def list_batches(
-    db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)
+    db: DBSession = Depends(get_db), user: User = Depends(get_current_user)
 ) -> list[dict]:
-    batches = list(
-        db.scalars(
-            select(Batch).where(Batch.teacher_id == teacher.id).order_by(Batch.created_at.desc())
-        ).all()
-    )
+    allowed = accessible_batch_ids(db, user)  # None = admin (all)
+    q = select(Batch).order_by(Batch.year.desc(), Batch.created_at.desc())
+    if allowed is not None:
+        if not allowed:
+            return []
+        q = q.where(Batch.id.in_(allowed))
+    batches = list(db.scalars(q).all())
+
     course_counts = dict(
         db.execute(
             select(Course.batch_id, func.count())
-            .where(Course.teacher_id == teacher.id)
+            .where(Course.batch_id.in_([b.id for b in batches] or [uuid.uuid4()]))
             .group_by(Course.batch_id)
         ).all()
     )
@@ -94,9 +89,13 @@ def list_batches(
 def get_batch(
     batch_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> BatchOut:
-    return BatchOut.model_validate(_owned_batch(batch_id, db, teacher))
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
+    assert_batch_access(db, user, batch_id)
+    return BatchOut.model_validate(batch)
 
 
 @router.patch("/{batch_id}", response_model=BatchOut)
@@ -104,9 +103,11 @@ def update_batch(
     batch_id: uuid.UUID,
     body: BatchUpdate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    _: User = Depends(require_admin),
 ) -> BatchOut:
-    batch = _owned_batch(batch_id, db, teacher)
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
     fields = body.model_dump(exclude_unset=True)
     if "roster" in fields and body.roster is not None:
         batch.roster = [r.model_dump() for r in body.roster]
@@ -122,10 +123,12 @@ def update_batch(
 def delete_batch(
     batch_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    _: User = Depends(require_admin),
 ) -> Response:
-    batch = _owned_batch(batch_id, db, teacher)
-    db.delete(batch)  # cascades to courses -> units -> sessions
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
+    db.delete(batch)  # cascades to courses -> units -> sessions, and batch_members
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -134,7 +137,7 @@ def delete_batch(
 def batch_stats(
     batch_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    _owned_batch(batch_id, db, teacher)
+    assert_batch_access(db, user, batch_id)
     return aggregate_stats(db, batch_session_ids(db, batch_id))

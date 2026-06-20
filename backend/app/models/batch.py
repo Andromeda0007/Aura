@@ -20,7 +20,7 @@ class Batch(Base):
     __tablename__ = "batches"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    teacher_id: Mapped[uuid.UUID] = mapped_column(
+    created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     program: Mapped[str] = mapped_column(String(120), nullable=False)  # e.g. "Computer Science"

@@ -1,4 +1,4 @@
-"""Session lifecycle routes (teacher-owned)."""
+"""Session lifecycle routes — access gated by batch membership (via the unit)."""
 from __future__ import annotations
 
 import uuid
@@ -6,17 +6,17 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import accessible_session_ids, assert_batch_access, batch_of_session, batch_of_unit
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user, require_staff
 from app.core.logging import get_logger
 from app.models.command import Command
-from app.models.enums import CommandStatus, SessionStatus
+from app.models.enums import CommandIntent, CommandStatus, SessionStatus
 from app.models.quiz import Quiz
 from app.models.quiz_attempt import QuizAttempt
-from app.models.course import Course
 from app.models.session import Session
 from app.models.transcript import Transcript
 from app.models.unit import Unit
@@ -38,12 +38,22 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = get_logger("aura.sessions")
 
 
-def _owned_session(session_id: uuid.UUID, db: DBSession, teacher: User) -> Session:
+def _session_or_404(session_id: uuid.UUID, db: DBSession) -> Session:
     sess = db.get(Session, session_id)
     if sess is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
-    if sess.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your session")
+    return sess
+
+
+def _read(session_id: uuid.UUID, db: DBSession, user: User) -> Session:
+    sess = _session_or_404(session_id, db)
+    assert_batch_access(db, user, batch_of_session(db, session_id))
+    return sess
+
+
+def _write(session_id: uuid.UUID, db: DBSession, user: User) -> Session:
+    sess = _session_or_404(session_id, db)
+    assert_batch_access(db, user, batch_of_session(db, session_id), write=True)
     return sess
 
 
@@ -51,23 +61,16 @@ def _owned_session(session_id: uuid.UUID, db: DBSession, teacher: User) -> Sessi
 def create_session(
     body: SessionCreate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> SessionOut:
-    def _owned_unit(unit_id: uuid.UUID) -> Unit:
-        unit = db.get(Unit, unit_id)
-        if unit is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
-        course = db.get(Course, unit.course_id)
-        if course is None or course.teacher_id != teacher.id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your unit")
-        return unit
-
-    unit_id = None
-    if body.unit_id is not None:
-        unit_id = _owned_unit(body.unit_id).id
+    if body.unit_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unit_id is required")
+    if db.get(Unit, body.unit_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
+    assert_batch_access(db, user, batch_of_unit(db, body.unit_id), write=True)
     sess = Session(
-        teacher_id=teacher.id,
-        unit_id=unit_id,
+        teacher_id=user.id,
+        unit_id=body.unit_id,
         subject=body.subject,
         language=body.language or "English",
         status=SessionStatus.ACTIVE,
@@ -75,7 +78,7 @@ def create_session(
     db.add(sess)
     db.commit()
     db.refresh(sess)
-    logger.info("session.create", session_id=str(sess.id), teacher_id=str(teacher.id))
+    logger.info("session.create", session_id=str(sess.id), teacher_id=str(user.id))
     return SessionOut.model_validate(sess)
 
 
@@ -84,21 +87,16 @@ def update_session(
     session_id: uuid.UUID,
     body: SessionUpdate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> SessionOut:
-    """(Re)assign the session's unit and/or language. Only fields the client
-    actually sends are changed (so a language-only update keeps the unit)."""
-    sess = _owned_session(session_id, db, teacher)
+    """(Re)assign the session's unit and/or language (only fields the client sends)."""
+    sess = _write(session_id, db, user)
     fields = body.model_fields_set
-    if "unit_id" in fields:
-        if body.unit_id is not None:
-            unit = db.get(Unit, body.unit_id)
-            course = db.get(Course, unit.course_id) if unit else None
-            if unit is None or course is None or course.teacher_id != teacher.id:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
-            sess.unit_id = unit.id
-        else:
-            sess.unit_id = None
+    if "unit_id" in fields and body.unit_id is not None:
+        if db.get(Unit, body.unit_id) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
+        assert_batch_access(db, user, batch_of_unit(db, body.unit_id), write=True)
+        sess.unit_id = body.unit_id
     if "language" in fields and body.language:
         sess.language = body.language
     db.commit()
@@ -109,10 +107,13 @@ def update_session(
 @router.get("", response_model=list[SessionOut])
 def list_sessions(
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> list[SessionOut]:
+    ids = accessible_session_ids(db, user)
+    if not ids:
+        return []
     rows = db.scalars(
-        select(Session).where(Session.teacher_id == teacher.id).order_by(Session.created_at.desc())
+        select(Session).where(Session.id.in_(ids)).order_by(Session.created_at.desc())
     ).all()
     return [SessionOut.model_validate(s) for s in rows]
 
@@ -121,19 +122,19 @@ def list_sessions(
 def get_session(
     session_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> SessionOut:
-    return SessionOut.model_validate(_owned_session(session_id, db, teacher))
+    return SessionOut.model_validate(_read(session_id, db, user))
 
 
 @router.get("/{session_id}/history")
 def session_history(
     session_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    """Transcripts + completed AI responses, for restoring an open session."""
-    sess = _owned_session(session_id, db, teacher)
+    """Transcripts + completed AI responses (restore an open session / view history)."""
+    sess = _read(session_id, db, user)
     transcripts = db.scalars(
         select(Transcript).where(Transcript.session_id == sess.id).order_by(Transcript.timestamp)
     ).all()
@@ -175,10 +176,10 @@ def star_transcript(
     transcript_id: uuid.UUID,
     body: StarUpdate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> dict:
     """Star/unstar a transcript line ('star this moment')."""
-    _owned_session(session_id, db, teacher)
+    _write(session_id, db, user)
     t = db.get(Transcript, transcript_id)
     if t is None or t.session_id != session_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Transcript not found")
@@ -191,9 +192,9 @@ def star_transcript(
 def end_session(
     session_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> SessionOut:
-    sess = _owned_session(session_id, db, teacher)
+    sess = _write(session_id, db, user)
     if sess.status != SessionStatus.COMPLETED:
         sess.status = SessionStatus.COMPLETED
         sess.end_time = datetime.now(timezone.utc)
@@ -207,12 +208,11 @@ def end_session(
 def session_report(
     session_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Auto end-of-class recap: summary + key concepts + quizzes + stats."""
-    sess = _owned_session(session_id, db, teacher)
+    sess = _read(session_id, db, user)
 
-    # latest generated summary (if any) for the recap text
     summary_cmd = db.scalar(
         select(Command)
         .where(
@@ -224,14 +224,12 @@ def session_report(
     )
     summary_data = (summary_cmd.llm_response or {}) if summary_cmd else {}
 
-    # key concepts: from compressed history if present
     key_concepts: list[str] = []
     for seg in sess.compressed_history or []:
         if isinstance(seg, dict):
             key_concepts.extend((seg.get("keyConcepts") or {}).keys())
     key_concepts = list(dict.fromkeys(key_concepts))[:12]
 
-    # quizzes with attempt stats
     quiz_rows = db.execute(
         select(
             Quiz.share_code,

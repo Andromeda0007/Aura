@@ -7,6 +7,7 @@ from app.models.enums import (
 )
 from app.models.assignment import Assignment, AssignmentSubmission
 from app.models.batch import Batch
+from app.models.batch_member import BatchMember
 from app.models.command import Command
 from app.models.course import Course
 from app.models.quiz import Quiz
@@ -20,6 +21,7 @@ from app.models.whiteboard import WhiteboardLog
 __all__ = [
     "User",
     "Batch",
+    "BatchMember",
     "Unit",
     "Session",
     "Transcript",

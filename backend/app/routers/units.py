@@ -4,13 +4,13 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.access import assert_batch_access, batch_of_unit
 from app.core.database import get_db
-from app.core.deps import get_current_teacher
+from app.core.deps import get_current_user, require_staff
 from app.core.hierarchy import unit_session_ids
-from app.models.command import Command
 from app.models.course import Course
 from app.models.session import Session
 from app.models.unit import Unit
@@ -22,28 +22,21 @@ from app.routers.stats import aggregate_stats
 router = APIRouter(prefix="/units", tags=["units"])
 
 
-def _owned_course(course_id: uuid.UUID, db: DBSession, teacher: User) -> Course:
-    course = db.get(Course, course_id)
-    if course is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
-    if course.teacher_id != teacher.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your course")
-    return course
-
-
-def _owned_unit(unit_id: uuid.UUID, db: DBSession, teacher: User) -> Unit:
+def _unit_or_404(unit_id: uuid.UUID, db: DBSession) -> Unit:
     unit = db.get(Unit, unit_id)
     if unit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
-    _owned_course(unit.course_id, db, teacher)
     return unit
 
 
 @router.post("", response_model=UnitOut, status_code=status.HTTP_201_CREATED)
 def create_unit(
-    body: UnitCreate, db: DBSession = Depends(get_db), teacher: User = Depends(get_current_teacher)
+    body: UnitCreate, db: DBSession = Depends(get_db), user: User = Depends(require_staff)
 ) -> UnitOut:
-    _owned_course(body.course_id, db, teacher)
+    course = db.get(Course, body.course_id)
+    if course is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+    assert_batch_access(db, user, course.batch_id, write=True)
     unit = Unit(course_id=body.course_id, name=body.name, description=body.description, order=body.order)
     db.add(unit)
     db.commit()
@@ -55,9 +48,10 @@ def create_unit(
 def get_unit(
     unit_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    unit = _owned_unit(unit_id, db, teacher)
+    unit = _unit_or_404(unit_id, db)
+    assert_batch_access(db, user, batch_of_unit(db, unit_id))
     sessions = db.scalars(
         select(Session).where(Session.unit_id == unit.id).order_by(Session.created_at.desc())
     ).all()
@@ -72,9 +66,10 @@ def update_unit(
     unit_id: uuid.UUID,
     body: UnitUpdate,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> UnitOut:
-    unit = _owned_unit(unit_id, db, teacher)
+    unit = _unit_or_404(unit_id, db)
+    assert_batch_access(db, user, batch_of_unit(db, unit_id), write=True)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(unit, key, value)
     db.commit()
@@ -86,10 +81,11 @@ def update_unit(
 def delete_unit(
     unit_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(require_staff),
 ) -> Response:
-    unit = _owned_unit(unit_id, db, teacher)
-    db.delete(unit)  # cascades to its sessions
+    unit = _unit_or_404(unit_id, db)
+    assert_batch_access(db, user, batch_of_unit(db, unit_id), write=True)
+    db.delete(unit)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -98,7 +94,8 @@ def delete_unit(
 def unit_stats(
     unit_id: uuid.UUID,
     db: DBSession = Depends(get_db),
-    teacher: User = Depends(get_current_teacher),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    _owned_unit(unit_id, db, teacher)
+    _unit_or_404(unit_id, db)
+    assert_batch_access(db, user, batch_of_unit(db, unit_id))
     return aggregate_stats(db, unit_session_ids(db, unit_id))
