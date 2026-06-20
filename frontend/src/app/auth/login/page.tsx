@@ -25,7 +25,7 @@ export default function LoginPage() {
       const { user, tokens } = await authApi.login({ email, password });
       setAuth(user, tokens);
       toast.success(`Welcome back, ${user.full_name.split(" ")[0]}`);
-      router.push("/dashboard");
+      router.push("/dashboard"); // dashboard routes by role
     } catch {
       toast.error("Invalid email or password");
     } finally {
@@ -76,11 +76,8 @@ export default function LoginPage() {
             {loading ? "Logging in…" : "Log in"}
           </Button>
 
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            New here?{" "}
-            <Link href="/auth/signup" className="font-medium text-primary hover:underline">
-              Create an account
-            </Link>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Accounts are created by your school admin.
           </p>
         </form>
       </main>

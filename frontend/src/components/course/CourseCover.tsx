@@ -16,18 +16,19 @@ import {
 
 import { cn } from "@/lib/utils";
 
-// Preset course art: key -> gradient + icon. No uploads; teacher picks one.
-export const COVERS: Record<string, { gradient: string; Icon: LucideIcon; label: string }> = {
-  database: { gradient: "from-indigo-500 to-blue-600", Icon: Database, label: "Database" },
-  network: { gradient: "from-sky-500 to-blue-600", Icon: Network, label: "Network" },
-  chip: { gradient: "from-amber-500 to-orange-600", Icon: Cpu, label: "Hardware" },
-  code: { gradient: "from-emerald-500 to-teal-600", Icon: Binary, label: "Code" },
-  math: { gradient: "from-rose-500 to-pink-600", Icon: FunctionSquare, label: "Math" },
-  science: { gradient: "from-fuchsia-500 to-rose-600", Icon: Atom, label: "Science" },
-  chemistry: { gradient: "from-lime-500 to-green-600", Icon: FlaskConical, label: "Chemistry" },
-  law: { gradient: "from-slate-500 to-slate-700", Icon: Scale, label: "Law / Theory" },
-  world: { gradient: "from-teal-500 to-emerald-600", Icon: Globe, label: "Humanities" },
-  book: { gradient: "from-stone-500 to-stone-700", Icon: BookOpen, label: "General" },
+// Preset course art: key -> a calm accent tint + subject icon (no gradients).
+// Teacher picks one; variety comes from the icon + tone, not saturated color.
+export const COVERS: Record<string, { tint: string; fg: string; Icon: LucideIcon; label: string }> = {
+  database: { tint: "bg-indigo-500/10", fg: "text-indigo-500", Icon: Database, label: "Database" },
+  network: { tint: "bg-sky-500/10", fg: "text-sky-500", Icon: Network, label: "Network" },
+  chip: { tint: "bg-amber-500/10", fg: "text-amber-600", Icon: Cpu, label: "Hardware" },
+  code: { tint: "bg-emerald-500/10", fg: "text-emerald-600", Icon: Binary, label: "Code" },
+  math: { tint: "bg-rose-500/10", fg: "text-rose-500", Icon: FunctionSquare, label: "Math" },
+  science: { tint: "bg-fuchsia-500/10", fg: "text-fuchsia-500", Icon: Atom, label: "Science" },
+  chemistry: { tint: "bg-lime-500/10", fg: "text-lime-600", Icon: FlaskConical, label: "Chemistry" },
+  law: { tint: "bg-slate-500/10", fg: "text-slate-500", Icon: Scale, label: "Law / Theory" },
+  world: { tint: "bg-teal-500/10", fg: "text-teal-600", Icon: Globe, label: "Humanities" },
+  book: { tint: "bg-stone-500/10", fg: "text-stone-500", Icon: BookOpen, label: "General" },
 };
 
 export const COVER_KEYS = Object.keys(COVERS);
@@ -37,16 +38,10 @@ export function coverOf(key: string) {
 }
 
 export function CourseCover({ coverKey, className }: { coverKey: string; className?: string }) {
-  const { gradient, Icon } = coverOf(coverKey);
+  const { tint, fg, Icon } = coverOf(coverKey);
   return (
-    <div
-      className={cn(
-        "relative grid place-items-center overflow-hidden bg-linear-to-br text-white/90",
-        gradient,
-        className,
-      )}
-    >
-      <Icon className="h-8 w-8 opacity-90" />
+    <div className={cn("relative grid place-items-center overflow-hidden", tint, fg, className)}>
+      <Icon className="h-8 w-8" />
       <Icon className="absolute -right-3 -bottom-3 h-20 w-20 opacity-10" />
     </div>
   );

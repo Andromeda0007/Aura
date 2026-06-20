@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Mic, Monitor, Moon, Sun } from "lucide-react";
+import { Check, LogOut, Mic, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+
+const ROLE_LABEL: Record<string, string> = { admin: "Admin", teacher: "Teacher", student: "Student" };
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
@@ -27,7 +29,7 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 export default function SettingsPage() {
   const ready = useRequireAuth();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
@@ -69,22 +71,11 @@ export default function SettingsPage() {
     }
   }
 
-  async function deleteAccount() {
-    if (!confirm("Delete your account and all sessions? This cannot be undone.")) return;
-    try {
-      await authApi.deleteAccount();
-      logout();
-      router.replace("/auth/signup");
-    } catch {
-      toast.error("Could not delete account");
-    }
-  }
-
   if (!ready) return null;
+  const current = theme === "light" || theme === "dark" ? theme : resolvedTheme;
   const THEMES = [
     { value: "light", icon: Sun, label: "Light" },
     { value: "dark", icon: Moon, label: "Dark" },
-    { value: "system", icon: Monitor, label: "System" },
   ] as const;
   const micLabel = { checking: "Checking…", ok: "Ready", blocked: "Blocked — allow mic access", unsupported: "Use Chrome/Edge for voice" }[mic];
 
@@ -94,13 +85,21 @@ export default function SettingsPage() {
       <AppHeader />
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-6 py-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Settings</h1>
-        <Section title="Profile">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Profile</h1>
+
+        <Section title="Your account">
           <form onSubmit={saveName} className="flex gap-2">
             <Input value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
             <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </form>
-          <p className="mt-2 text-xs text-muted-foreground">{user?.email}</p>
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{user?.email}</span>
+            {user?.role && (
+              <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">
+                {ROLE_LABEL[user.role] ?? user.role}
+              </span>
+            )}
+          </div>
         </Section>
 
         <Section title="Appearance" desc="Theme used across Aura.">
@@ -111,11 +110,11 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => setTheme(value)}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
-                  theme === value ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-muted"
+                  current === value ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-muted"
                 }`}
               >
                 <Icon className="h-4 w-4" /> {label}
-                {theme === value && <Check className="h-3.5 w-3.5 text-primary" />}
+                {current === value && <Check className="h-3.5 w-3.5 text-primary" />}
               </button>
             ))}
           </div>
@@ -128,13 +127,10 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Account">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => { logout(); router.replace("/auth/login"); }}>
-              Log out
-            </Button>
-            <Button variant="danger" onClick={deleteAccount}>Delete account</Button>
-          </div>
+        <Section title="Session">
+          <Button variant="outline" onClick={() => { logout(); router.replace("/auth/login"); }}>
+            <LogOut className="h-4 w-4" /> Log out
+          </Button>
         </Section>
       </main>
     </div>

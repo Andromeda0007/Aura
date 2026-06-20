@@ -13,6 +13,7 @@ import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useCanWrite } from "@/hooks/useRole";
 import { batchApi, courseApi, type Batch, type CourseSummary } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const ACCENT_DOT: Record<string, string> = {
 
 export function BatchView({ batchId }: { batchId: string }) {
   const ready = useRequireAuth();
+  const canWrite = useCanWrite();
   const [batch, setBatch] = useState<Batch | null>(null);
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -87,12 +89,14 @@ export function BatchView({ batchId }: { batchId: string }) {
               {batch.section ? ` · ${batch.section}` : ""}
             </p>
           </div>
-          <Button onClick={() => setShowForm((v) => !v)}>
-            <Plus className="h-4 w-4" /> New course
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setShowForm((v) => !v)}>
+              <Plus className="h-4 w-4" /> New course
+            </Button>
+          )}
         </div>
 
-        {showForm && (
+        {canWrite && showForm && (
           <form onSubmit={create} className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Course name (e.g. DBMS)" />

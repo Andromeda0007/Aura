@@ -13,10 +13,12 @@ import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useCanWrite } from "@/hooks/useRole";
 import { batchApi, courseApi, unitApi, type CourseDetail } from "@/lib/api";
 
 export function CourseView({ courseId }: { courseId: string }) {
   const ready = useRequireAuth();
+  const canWrite = useCanWrite();
   const [detail, setDetail] = useState<CourseDetail | null>(null);
   const [crumbBatch, setCrumbBatch] = useState<{ id: string; label: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -92,12 +94,14 @@ export function CourseView({ courseId }: { courseId: string }) {
               </span>
             </p>
           </div>
-          <Button onClick={() => setShowForm((v) => !v)}>
-            <Plus className="h-4 w-4" /> New unit
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setShowForm((v) => !v)}>
+              <Plus className="h-4 w-4" /> New unit
+            </Button>
+          )}
         </div>
 
-        {showForm && (
+        {canWrite && showForm && (
           <form onSubmit={create} className="mt-6 grid gap-3 rounded-2xl border border-border bg-card p-5 sm:grid-cols-[2fr_3fr_auto]">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Unit name (e.g. Linked Lists)" />
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />

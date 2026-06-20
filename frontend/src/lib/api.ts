@@ -50,14 +50,52 @@ api.interceptors.response.use(
 
 // ---- typed API helpers ----
 export const authApi = {
-  signup: (body: { email: string; password: string; full_name: string; role?: string }) =>
-    api.post<AuthResponse>("/auth/signup", body).then((r) => r.data),
   login: (body: { email: string; password: string }) =>
     api.post<AuthResponse>("/auth/login", body).then((r) => r.data),
   me: () => api.get<User>("/auth/me").then((r) => r.data),
   updateProfile: (full_name: string) =>
     api.patch<User>("/auth/me", { full_name }).then((r) => r.data),
-  deleteAccount: () => api.delete("/auth/me").then(() => undefined),
+};
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: "admin" | "teacher" | "student";
+  isActive: boolean;
+  batchIds: string[];
+  createdAt: string | null;
+}
+export interface AdminStats {
+  batches: {
+    id: string;
+    program: string;
+    semester: number;
+    year: number;
+    section: string | null;
+    members: number;
+    sessions: number;
+    quizzes: number;
+    tokensUsed: number;
+  }[];
+  totals: { batches: number; courses: number; sessions: number; quizzes: number; tokensUsed: number };
+}
+
+export const adminApi = {
+  listUsers: () => api.get<AdminUser[]>("/admin/users").then((r) => r.data),
+  createUser: (body: {
+    email: string;
+    full_name: string;
+    password: string;
+    role: string;
+    batch_ids: string[];
+  }) => api.post<AdminUser>("/admin/users", body).then((r) => r.data),
+  updateUser: (
+    id: string,
+    body: Partial<{ full_name: string; password: string; is_active: boolean; role: string; batch_ids: string[] }>,
+  ) => api.patch<AdminUser>(`/admin/users/${id}`, body).then((r) => r.data),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`).then(() => undefined),
+  stats: () => api.get<AdminStats>("/admin/stats").then((r) => r.data),
 };
 
 export const sessionApi = {

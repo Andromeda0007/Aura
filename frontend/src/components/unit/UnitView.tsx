@@ -14,6 +14,7 @@ import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useCanWrite } from "@/hooks/useRole";
 import { batchApi, courseApi, sessionApi, unitApi, type UnitDetail } from "@/lib/api";
 import type { Session } from "@/types";
 
@@ -25,6 +26,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function UnitView({ unitId }: { unitId: string }) {
   const ready = useRequireAuth();
+  const canWrite = useCanWrite();
   const router = useRouter();
   const [detail, setDetail] = useState<UnitDetail | null>(null);
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ label: "Batches", href: "/dashboard" }]);
@@ -82,16 +84,18 @@ export function UnitView({ unitId }: { unitId: string }) {
           {unit.description && <p className="mt-1 text-muted-foreground">{unit.description}</p>}
         </div>
 
-        <form onSubmit={startSession} className="mt-6 flex gap-2">
-          <Input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Start a session in this unit — e.g. Singly linked lists"
-          />
-          <Button type="submit" disabled={creating}>
-            <Plus className="h-4 w-4" /> {creating ? "Starting…" : "Start"}
-          </Button>
-        </form>
+        {canWrite && (
+          <form onSubmit={startSession} className="mt-6 flex gap-2">
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Start a session in this unit — e.g. Singly linked lists"
+            />
+            <Button type="submit" disabled={creating}>
+              <Plus className="h-4 w-4" /> {creating ? "Starting…" : "Start"}
+            </Button>
+          </form>
+        )}
 
         <h2 className="mt-8 text-lg font-semibold">Sessions</h2>
         <div className="mt-3 space-y-2">
@@ -114,18 +118,20 @@ export function UnitView({ unitId }: { unitId: string }) {
                 </span>
                 <Link
                   href={`/session/${s.id}`}
-                  className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
+                  className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm transition-colors hover:bg-muted"
                   aria-label="Session history"
                   title="History & artifacts"
                 >
-                  <History className="h-4 w-4" />
+                  <History className="h-4 w-4" /> History
                 </Link>
-                <Link
-                  href={`/classroom/${s.id}`}
-                  className="flex h-9 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98]"
-                >
-                  <Play className="h-4 w-4" /> Open
-                </Link>
+                {canWrite && (
+                  <Link
+                    href={`/classroom/${s.id}`}
+                    className="flex h-9 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98]"
+                  >
+                    <Play className="h-4 w-4" /> Open
+                  </Link>
+                )}
               </div>
             ))
           )}
