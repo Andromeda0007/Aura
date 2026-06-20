@@ -102,7 +102,7 @@ export default function LoginPage() {
               <Input
                 id="email" type="email" autoComplete="email" required
                 value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@school.edu"
+                placeholder="you@example.com"
               />
             </div>
             <div className="space-y-1.5">
@@ -120,7 +120,7 @@ export default function LoginPage() {
           </Button>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Accounts are created by your school admin.
+            Accounts are created by your admin.
           </p>
         </form>
       </main>
