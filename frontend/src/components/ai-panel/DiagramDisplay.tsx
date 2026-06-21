@@ -24,6 +24,10 @@ export function DiagramDisplay({
       startOnLoad: false,
       theme: resolvedTheme === "dark" ? "dark" : "default",
       securityLevel: "strict", // sanitizes — no script injection from model output
+      // Render labels as native SVG <text>, not <foreignObject>: keeps the SVG
+      // exportable to a canvas (foreignObject taints it) so it can be dragged onto
+      // the whiteboard and captured in snapshots.
+      flowchart: { htmlLabels: false },
     });
     const id = "m" + Math.random().toString(36).slice(2);
 

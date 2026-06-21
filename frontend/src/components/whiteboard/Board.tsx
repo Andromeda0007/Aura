@@ -73,30 +73,11 @@ function loadImageSize(src: string): Promise<{ width: number; height: number }> 
   });
 }
 
-// Excalidraw has no native SVG element, so rasterize the SVG markup to a PNG data URL.
-function svgToPng(svg: string): Promise<{ dataURL: string; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      const width = img.naturalWidth || 480;
-      const height = img.naturalHeight || 360;
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      URL.revokeObjectURL(url);
-      if (!ctx) return reject(new Error("no 2d context"));
-      ctx.drawImage(img, 0, 0);
-      resolve({ dataURL: canvas.toDataURL("image/png"), width, height });
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("svg rasterize failed"));
-    };
-    img.src = url;
-  });
+// Excalidraw renders SVG images natively, so we embed the SVG markup as an
+// image/svg+xml data URL (no canvas rasterization — drawing a Mermaid SVG with
+// <foreignObject> to a canvas taints it and toDataURL throws).
+function svgToDataUrl(svg: string): string {
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
 /** Excalidraw board. Native pen/touch/mouse; theme follows the app. While recording,
@@ -224,15 +205,7 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           }
         })();
       } else if (payload.kind === "svg" && payload.svg) {
-        const svg = payload.svg;
-        void (async () => {
-          try {
-            const { dataURL } = await svgToPng(svg);
-            await addImageDataUrl(dataURL, "image/png", at);
-          } catch {
-            /* ignore unrenderable svg */
-          }
-        })();
+        void addImageDataUrl(svgToDataUrl(payload.svg), "image/svg+xml", at);
       } else if (payload.text) {
         addText(payload.text, at);
       }
