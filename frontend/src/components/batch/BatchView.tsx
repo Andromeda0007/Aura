@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers, Plus } from "lucide-react";
+import { BookOpen, Layers, Plus, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +10,10 @@ import { Breadcrumbs, batchTitle } from "@/components/layout/Breadcrumbs";
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
+import { CardActions } from "@/components/ui/card-actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useIsAdmin } from "@/hooks/useRole";
 import { batchApi, departmentApi, type Batch, type DepartmentSummary } from "@/lib/api";
@@ -23,6 +26,12 @@ const DOT: Record<string, string> = {
   amber: "bg-amber-500",
   sky: "bg-sky-500",
 };
+const COLORS = Object.keys(DOT);
+
+function detail(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return typeof msg === "string" ? msg : fallback;
+}
 
 export function BatchView({ batchId }: { batchId: string }) {
   const ready = useRequireAuth();
@@ -32,6 +41,13 @@ export function BatchView({ batchId }: { batchId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const [editing, setEditing] = useState<DepartmentSummary | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState("indigo");
+  const [deleting, setDeleting] = useState<DepartmentSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function refresh() {
     setDepts(await departmentApi.list(batchId));
@@ -48,15 +64,53 @@ export function BatchView({ batchId }: { batchId: string }) {
     if (!name.trim()) return;
     setCreating(true);
     try {
-      const palette = Object.keys(DOT);
-      await departmentApi.create({ batch_id: batchId, name: name.trim(), color: palette[depts.length % palette.length] });
+      await departmentApi.create({ batch_id: batchId, name: name.trim(), color: COLORS[depts.length % COLORS.length] });
       setName("");
       setShowForm(false);
       await refresh();
-    } catch {
-      toast.error("Could not create department");
+    } catch (e2) {
+      toast.error(detail(e2, "Could not create department"));
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openEdit(d: DepartmentSummary) {
+    setEditing(d);
+    setEditName(d.name);
+    setEditColor(d.color);
+    setErr("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing || !editName.trim()) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await departmentApi.update(editing.id, { name: editName.trim(), color: editColor });
+      setEditing(null);
+      await refresh();
+      toast.success("Saved");
+    } catch (e2) {
+      setErr(detail(e2, "Could not save"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await departmentApi.remove(deleting.id);
+      setDeleting(null);
+      await refresh();
+      toast.success("Department deleted");
+    } catch (e2) {
+      toast.error(detail(e2, "Could not delete"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -102,16 +156,71 @@ export function BatchView({ batchId }: { batchId: string }) {
             </div>
           ) : (
             depts.map((d) => (
-              <Link key={d.id} href={`/department/${d.id}`} className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted">
-                <span className={cn("inline-block h-2.5 w-2.5 rounded-full", DOT[d.color] ?? DOT.indigo)} />
-                <h3 className="mt-3 font-medium leading-snug">{d.name}</h3>
-                <p className="mt-2 text-xs text-muted-foreground">{d.semesters} semester{d.semesters === 1 ? "" : "s"}</p>
-              </Link>
+              <div key={d.id} className="group relative">
+                <Link
+                  href={`/department/${d.id}`}
+                  className="block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40"
+                >
+                  <div className={cn("h-1.5 w-full", DOT[d.color] ?? DOT.indigo)} />
+                  <div className="p-5">
+                    <h3 className="font-display text-xl font-semibold leading-snug tracking-tight">{d.name}</h3>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" /> {d.semesters} sem</span>
+                      <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" /> {d.courses} course{d.courses === 1 ? "" : "s"}</span>
+                      <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> {d.tokensUsed.toLocaleString()} tok</span>
+                    </div>
+                  </div>
+                </Link>
+                <CardActions show={isAdmin} onEdit={() => openEdit(d)} onDelete={() => setDeleting(d)} />
+              </div>
             ))
           )}
         </div>
-
       </main>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit department">
+        <form onSubmit={saveEdit} className="space-y-4">
+          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Department name" />
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-muted-foreground">Color</span>
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={c}
+                onClick={() => setEditColor(c)}
+                className={cn(
+                  "h-6 w-6 rounded-full ring-2 ring-offset-2 ring-offset-card transition-all",
+                  DOT[c],
+                  editColor === c ? "ring-foreground" : "ring-transparent",
+                )}
+              />
+            ))}
+          </div>
+          {err && <p className="text-sm text-danger">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete department?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">{deleting.name}</span> and its{" "}
+              {deleting.semesters} semester{deleting.semesters === 1 ? "" : "s"} — including all their courses, units and
+              sessions. This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

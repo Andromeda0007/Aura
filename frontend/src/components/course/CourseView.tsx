@@ -11,10 +11,20 @@ import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcr
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
+import { CardActions } from "@/components/ui/card-actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCanWrite } from "@/hooks/useRole";
-import { batchApi, courseApi, semesterApi, unitApi, type CourseDetail } from "@/lib/api";
+import { batchApi, courseApi, semesterApi, unitApi, type CourseDetail, type Unit } from "@/lib/api";
+
+type UnitRow = Unit & { sessions: number };
+
+function errDetail(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return typeof msg === "string" ? msg : fallback;
+}
 
 export function CourseView({ courseId }: { courseId: string }) {
   const ready = useRequireAuth();
@@ -25,6 +35,13 @@ export function CourseView({ courseId }: { courseId: string }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const [editing, setEditing] = useState<UnitRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [deleting, setDeleting] = useState<UnitRow | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function refresh() {
     const d = await courseApi.get(courseId);
@@ -73,6 +90,45 @@ export function CourseView({ courseId }: { courseId: string }) {
       toast.error("Could not create unit");
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openEdit(u: UnitRow) {
+    setEditing(u);
+    setEditName(u.name);
+    setEditDescription(u.description);
+    setErr("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing || !editName.trim()) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await unitApi.update(editing.id, { name: editName.trim(), description: editDescription.trim() });
+      setEditing(null);
+      await refresh();
+      toast.success("Saved");
+    } catch (e2) {
+      setErr(errDetail(e2, "Could not save"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await unitApi.remove(deleting.id);
+      setDeleting(null);
+      await refresh();
+      toast.success("Unit deleted");
+    } catch (e2) {
+      toast.error(errDetail(e2, "Could not delete"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -126,23 +182,53 @@ export function CourseView({ courseId }: { courseId: string }) {
             </div>
           ) : (
             units.map((u, i) => (
-              <Link
-                key={u.id}
-                href={`/unit/${u.id}`}
-                className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted"
-              >
-                <p className="text-xs font-medium uppercase tracking-wide text-primary">Unit {i + 1}</p>
-                <h3 className="mt-1 font-medium leading-snug">{u.name}</h3>
-                {u.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.description}</p>}
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {u.sessions} session{u.sessions === 1 ? "" : "s"}
-                </p>
-              </Link>
+              <div key={u.id} className="group relative">
+                <Link
+                  href={`/unit/${u.id}`}
+                  className="block rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary">Unit {i + 1}</p>
+                  <h3 className="mt-1 font-medium leading-snug">{u.name}</h3>
+                  {u.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{u.description}</p>}
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {u.sessions} session{u.sessions === 1 ? "" : "s"}
+                  </p>
+                </Link>
+                <CardActions show={canWrite} onEdit={() => openEdit(u)} onDelete={() => setDeleting(u)} />
+              </div>
             ))
           )}
         </div>
 
       </main>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit unit">
+        <form onSubmit={saveEdit} className="space-y-4">
+          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Unit name" />
+          <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Short description (optional)" />
+          {err && <p className="text-sm text-danger">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete unit?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">{deleting.name}</span> — including its{" "}
+              {deleting.sessions} session{deleting.sessions === 1 ? "" : "s"}. This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

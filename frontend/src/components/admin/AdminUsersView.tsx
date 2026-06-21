@@ -1,14 +1,17 @@
 "use client";
 
-import { Trash2, UserPlus, X } from "lucide-react";
+import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AssignmentPicker, buildSemesterLabels, type Picked } from "@/components/admin/AssignmentPicker";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useIsAdmin } from "@/hooks/useRole";
@@ -21,9 +24,15 @@ const ROLE_BADGE: Record<string, string> = {
   student: "bg-accent/15 text-accent",
 };
 
-interface Picked {
-  id: string;
-  label: string;
+const SECTIONS: { role: "admin" | "teacher" | "student"; title: string; blurb: string }[] = [
+  { role: "admin", title: "Admins", blurb: "Full access to every batch." },
+  { role: "teacher", title: "Teachers", blurb: "Run classes in their assigned semesters." },
+  { role: "student", title: "Students", blurb: "Belong to a single semester." },
+];
+
+function detail(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return typeof msg === "string" ? msg : fallback;
 }
 
 export function AdminUsersView() {
@@ -37,13 +46,17 @@ export function AdminUsersView() {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("teacher");
+  const [picked, setPicked] = useState<Picked[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // selection state
-  const [picked, setPicked] = useState<Picked[]>([]);
-  const [deptName, setDeptName] = useState(""); // teacher: department (subject) first
-  const [batchId, setBatchId] = useState(""); // student: batch first
-  const [deptId, setDeptId] = useState(""); // student: dept within batch
+  // edit + delete state
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editPicked, setEditPicked] = useState<Picked[]>([]);
+  const [deleting, setDeleting] = useState<AdminUser | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function refresh() {
     setUsers(await adminApi.listUsers());
@@ -59,36 +72,15 @@ export function AdminUsersView() {
     adminApi.tree().then(setTree).catch(() => {});
   }, [ready, isAdmin, router]);
 
-  function resetSelection() {
-    setPicked([]);
-    setDeptName("");
-    setBatchId("");
-    setDeptId("");
-  }
-
-  // distinct department names across all batches (teachers pick one subject area)
-  const deptNames = useMemo(
-    () => [...new Set(tree.flatMap((b) => b.departments.map((d) => d.name)))].sort(),
-    [tree],
+  const semesterLabels = useMemo(() => buildSemesterLabels(tree), [tree]);
+  const grouped = useMemo(
+    () => ({
+      admin: users.filter((u) => u.role === "admin"),
+      teacher: users.filter((u) => u.role === "teacher"),
+      student: users.filter((u) => u.role === "student"),
+    }),
+    [users],
   );
-  // for the chosen department name: each batch that has it
-  const teacherRows = useMemo(
-    () =>
-      tree
-        .map((b) => ({ batch: b, dept: b.departments.find((d) => d.name === deptName) }))
-        .filter((x) => x.dept),
-    [tree, deptName],
-  );
-
-  const studentBatch = tree.find((b) => b.id === batchId);
-  const studentDept = studentBatch?.departments.find((d) => d.id === deptId);
-
-  function togglePicked(id: string, label: string, single: boolean) {
-    setPicked((p) => {
-      if (single) return [{ id, label }];
-      return p.some((x) => x.id === id) ? p.filter((x) => x.id !== id) : [...p, { id, label }];
-    });
-  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -116,25 +108,65 @@ export function AdminUsersView() {
       setEmail("");
       setFullName("");
       setPassword("");
-      resetSelection();
+      setPicked([]);
       await refresh();
       toast.success("Account created");
-    } catch (err) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(typeof msg === "string" ? msg : "Could not create account");
+    } catch (e2) {
+      toast.error(detail(e2, "Could not create account"));
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(u: AdminUser) {
-    if (!confirm(`Delete ${u.fullName} (${u.email})?`)) return;
+  function openEdit(u: AdminUser) {
+    setEditing(u);
+    setEditName(u.fullName);
+    setEditActive(u.isActive);
+    setEditPicked(u.semesterIds.map((id) => ({ id, label: semesterLabels.get(id) ?? id })));
+    setErr("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing || !editName.trim()) return;
+    if (editing.role === "student" && editPicked.length !== 1) {
+      setErr("A student must be assigned exactly one semester");
+      return;
+    }
+    if (editing.role === "teacher" && editPicked.length === 0) {
+      setErr("A teacher needs at least one semester");
+      return;
+    }
+    setBusy(true);
+    setErr("");
     try {
-      await adminApi.deleteUser(u.id);
+      await adminApi.updateUser(editing.id, {
+        full_name: editName.trim(),
+        is_active: editActive,
+        ...(editing.role === "admin" ? {} : { semester_ids: editPicked.map((p) => p.id) }),
+      });
+      setEditing(null);
       await refresh();
-    } catch (err) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(typeof msg === "string" ? msg : "Could not delete");
+      toast.success("Saved");
+    } catch (e2) {
+      setErr(detail(e2, "Could not save"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await adminApi.deleteUser(deleting.id);
+      setDeleting(null);
+      await refresh();
+      toast.success("Account deleted");
+    } catch (e2) {
+      toast.error(detail(e2, "Could not delete"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -149,30 +181,52 @@ export function AdminUsersView() {
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight">People</h1>
           <p className="mt-1 text-muted-foreground">Teachers, students, and admins.</p>
-          <div className="mt-6 space-y-2">
-            {users.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No accounts yet — create one on the right.</p>
-            ) : (
-              users.map((u) => (
-                <div key={u.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 font-medium">
-                      <span className="truncate">{u.fullName}</span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ROLE_BADGE[u.role])}>{u.role}</span>
-                      {!u.isActive && <span className="text-xs text-muted-foreground">(disabled)</span>}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {u.email}
-                      {u.role !== "admin" && ` · ${u.semesterIds.length} class${u.semesterIds.length === 1 ? "" : "es"}`}
-                    </p>
-                  </div>
-                  <button type="button" aria-label={`Delete ${u.fullName}`} onClick={() => remove(u)} className="shrink-0 text-muted-foreground transition-colors hover:text-danger">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+
+          {users.length === 0 ? (
+            <p className="mt-6 text-sm text-muted-foreground">No accounts yet — create one on the right.</p>
+          ) : (
+            <div className="mt-6 space-y-8">
+              {SECTIONS.map(({ role: r, title, blurb }) => {
+                const list = grouped[r];
+                return (
+                  <section key={r}>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-lg font-semibold">{title}</h2>
+                      <span className="text-sm text-muted-foreground">{list.length}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{blurb}</p>
+                    <div className="mt-3 space-y-2">
+                      {list.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">None yet.</p>
+                      ) : (
+                        list.map((u) => (
+                          <div key={u.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="flex items-center gap-2 font-medium">
+                                <span className="truncate">{u.fullName}</span>
+                                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ROLE_BADGE[u.role])}>{u.role}</span>
+                                {!u.isActive && <span className="text-xs text-muted-foreground">(disabled)</span>}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {u.email}
+                                {u.role !== "admin" && ` · ${u.semesterIds.length} class${u.semesterIds.length === 1 ? "" : "es"}`}
+                              </p>
+                            </div>
+                            <button type="button" aria-label={`Edit ${u.fullName}`} title="Edit" onClick={() => openEdit(u)} className="shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button type="button" aria-label={`Delete ${u.fullName}`} title="Delete" onClick={() => setDeleting(u)} className="shrink-0 text-muted-foreground transition-colors hover:text-danger">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <aside>
@@ -184,7 +238,7 @@ export function AdminUsersView() {
             <select
               aria-label="Role"
               value={role}
-              onChange={(e) => { setRole(e.target.value); resetSelection(); }}
+              onChange={(e) => { setRole(e.target.value); setPicked([]); }}
               className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="teacher">Teacher</option>
@@ -192,81 +246,7 @@ export function AdminUsersView() {
               <option value="admin">Admin</option>
             </select>
 
-            {/* TEACHER: department first, then semesters across any batches of that dept */}
-            {role === "teacher" && (
-              <div className="space-y-2 rounded-xl border border-border p-3">
-                <select
-                  aria-label="Department"
-                  value={deptName}
-                  onChange={(e) => setDeptName(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">Select department…</option>
-                  {deptNames.map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-                {deptName && teacherRows.map(({ batch, dept }) => (
-                  <div key={dept!.id}>
-                    <p className="mb-1 mt-1 text-xs font-medium text-muted-foreground">Batch {batch.label}</p>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {dept!.semesters.map((s) => {
-                        const label = `${deptName} · ${batch.label} · Sem ${s.number}`;
-                        const on = picked.some((p) => p.id === s.id);
-                        return (
-                          <button key={s.id} type="button" onClick={() => togglePicked(s.id, label, false)}
-                            className={cn("rounded-lg border px-2 py-1.5 text-xs", on ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted")}>
-                            S{s.number}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* STUDENT: batch -> department -> one semester */}
-            {role === "student" && (
-              <div className="space-y-2 rounded-xl border border-border p-3">
-                <select aria-label="Batch" value={batchId} onChange={(e) => { setBatchId(e.target.value); setDeptId(""); setPicked([]); }}
-                  className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <option value="">Select batch…</option>
-                  {tree.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-                </select>
-                <select aria-label="Department" value={deptId} onChange={(e) => { setDeptId(e.target.value); setPicked([]); }} disabled={!batchId}
-                  className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
-                  <option value="">Select department…</option>
-                  {studentBatch?.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-                {studentDept && (
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {studentDept.semesters.map((s) => {
-                      const label = `${studentDept.name} · ${studentBatch!.label} · Sem ${s.number}`;
-                      const on = picked.some((p) => p.id === s.id);
-                      return (
-                        <button key={s.id} type="button" onClick={() => togglePicked(s.id, label, true)}
-                          className={cn("rounded-lg border px-2 py-1.5 text-xs", on ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted")}>
-                          S{s.number}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* selected chips */}
-            {role !== "admin" && picked.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {picked.map((p) => (
-                  <span key={p.id} className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs">
-                    {p.label}
-                    <button type="button" aria-label={`Remove ${p.label}`} onClick={() => setPicked((cur) => cur.filter((x) => x.id !== p.id))} className="text-muted-foreground hover:text-danger">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <AssignmentPicker key={role} role={role} tree={tree} picked={picked} onChange={setPicked} />
 
             <Button type="submit" disabled={saving} className="w-full">
               <UserPlus className="h-4 w-4" /> {saving ? "Creating…" : "Create account"}
@@ -274,6 +254,54 @@ export function AdminUsersView() {
           </form>
         </aside>
       </main>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit account">
+        {editing && (
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Full name</p>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full name" />
+              <p className="mt-1 text-xs text-muted-foreground">{editing.email} · {editing.role}</p>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              Account active
+            </label>
+
+            {editing.role !== "admin" && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  {editing.role === "student" ? "Semester (move to next sem here)" : "Assigned semesters"}
+                </p>
+                <AssignmentPicker key={editing.id} role={editing.role} tree={tree} picked={editPicked} onChange={setEditPicked} />
+              </div>
+            )}
+
+            {err && <p className="text-sm text-danger">{err}</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete account?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">{deleting.fullName}</span> ({deleting.email}).
+              This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

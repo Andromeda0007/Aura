@@ -9,20 +9,35 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcrumbs";
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
+import { CardActions } from "@/components/ui/card-actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { batchApi, departmentApi, type DepartmentDetail } from "@/lib/api";
+import { useIsAdmin } from "@/hooks/useRole";
+import { batchApi, departmentApi, semesterApi, type DepartmentDetail, type Semester } from "@/lib/api";
+
+function detail(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return typeof msg === "string" ? msg : fallback;
+}
 
 export function DepartmentView({ departmentId }: { departmentId: string }) {
   const ready = useRequireAuth();
-  const [detail, setDetail] = useState<DepartmentDetail | null>(null);
+  const isAdmin = useIsAdmin();
+  const [data, setData] = useState<DepartmentDetail | null>(null);
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ label: "Batches", href: "/dashboard" }]);
+  const [deleting, setDeleting] = useState<Semester | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function refresh() {
+    const d = await departmentApi.get(departmentId);
+    setData(d);
+    return d;
+  }
 
   useEffect(() => {
     if (!ready) return;
-    departmentApi
-      .get(departmentId)
+    refresh()
       .then(async (d) => {
-        setDetail(d);
         try {
           const b = await batchApi.get(d.department.batch_id);
           setCrumbs([
@@ -37,8 +52,23 @@ export function DepartmentView({ departmentId }: { departmentId: string }) {
       .catch(() => toast.error("Department not found"));
   }, [ready, departmentId]);
 
-  if (!ready || !detail) return null;
-  const { department, semesters } = detail;
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await semesterApi.remove(deleting.id);
+      setDeleting(null);
+      await refresh();
+      toast.success("Semester deleted");
+    } catch (e2) {
+      toast.error(detail(e2, "Could not delete"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!ready || !data) return null;
+  const { department, semesters } = data;
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -66,19 +96,37 @@ export function DepartmentView({ departmentId }: { departmentId: string }) {
             </div>
           ) : (
             semesters.map((s) => (
-              <Link
-                key={s.id}
-                href={`/semester/${s.id}`}
-                className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted"
-              >
-                <span className="font-display text-xl font-semibold tracking-tight">Semester {s.number}</span>
-                <span className="text-sm text-muted-foreground" aria-hidden>→</span>
-              </Link>
+              <div key={s.id} className="group relative">
+                <Link
+                  href={`/semester/${s.id}`}
+                  className="flex items-center justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted"
+                >
+                  <span className="font-display text-xl font-semibold tracking-tight">Semester {s.number}</span>
+                  <span className="text-sm text-muted-foreground" aria-hidden>→</span>
+                </Link>
+                <CardActions show={isAdmin} onDelete={() => setDeleting(s)} />
+              </div>
             ))
           )}
         </div>
 
       </main>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete semester?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">Semester {deleting.number}</span> of{" "}
+              {department.name} — including all its courses, units and sessions. This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

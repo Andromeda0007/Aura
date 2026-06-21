@@ -110,6 +110,9 @@ export const sessionApi = {
     api.post<Session>("/sessions", { subject, unit_id: unitId ?? null }).then((r) => r.data),
   setLanguage: (id: string, language: string) =>
     api.patch<Session>(`/sessions/${id}`, { language }).then((r) => r.data),
+  update: (id: string, body: Partial<{ subject: string; language: string }>) =>
+    api.patch<Session>(`/sessions/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/sessions/${id}`).then(() => undefined),
   list: () => api.get<Session[]>("/sessions").then((r) => r.data),
   get: (id: string) => api.get<Session>(`/sessions/${id}`).then((r) => r.data),
   end: (id: string) => api.post<Session>(`/sessions/${id}/end`).then((r) => r.data),
@@ -246,6 +249,8 @@ export interface Department {
 }
 export interface DepartmentSummary extends Department {
   semesters: number;
+  courses: number;
+  tokensUsed: number;
 }
 export interface Semester {
   id: string;
@@ -362,6 +367,8 @@ export const departmentApi = {
   get: (id: string) => api.get<DepartmentDetail>(`/departments/${id}`).then((r) => r.data),
   create: (body: { batch_id: string; name: string; color?: string }) =>
     api.post<Department>("/departments", body).then((r) => r.data),
+  update: (id: string, body: Partial<{ name: string; color: string }>) =>
+    api.patch<Department>(`/departments/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.delete(`/departments/${id}`).then(() => undefined),
   stats: (id: string) => api.get<LevelStats>(`/departments/${id}/stats`).then((r) => r.data),
 };
@@ -369,6 +376,7 @@ export const departmentApi = {
 export const semesterApi = {
   get: (id: string) => api.get<SemesterDetail>(`/semesters/${id}`).then((r) => r.data),
   mine: () => api.get<MySemester[]>("/semesters/mine").then((r) => r.data),
+  remove: (id: string) => api.delete(`/semesters/${id}`).then(() => undefined),
   stats: (id: string) => api.get<LevelStats>(`/semesters/${id}/stats`).then((r) => r.data),
 };
 

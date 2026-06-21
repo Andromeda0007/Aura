@@ -11,11 +11,19 @@ import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcr
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
+import { CardActions } from "@/components/ui/card-actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCanWrite } from "@/hooks/useRole";
-import { batchApi, courseApi, semesterApi, type SemesterDetail } from "@/lib/api";
+import { batchApi, courseApi, semesterApi, type CourseSummary, type SemesterDetail } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+function errDetail(err: unknown, fallback: string): string {
+  const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return typeof msg === "string" ? msg : fallback;
+}
 
 const ACCENTS = ["indigo", "emerald", "rose", "amber", "sky"];
 const ACCENT_DOT: Record<string, string> = {
@@ -33,6 +41,15 @@ export function SemesterView({ semesterId }: { semesterId: string }) {
   const [cover, setCover] = useState(COVER_KEYS[0]);
   const [color, setColor] = useState("indigo");
   const [creating, setCreating] = useState(false);
+
+  const [editing, setEditing] = useState<CourseSummary | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editProfessor, setEditProfessor] = useState("");
+  const [editCover, setEditCover] = useState(COVER_KEYS[0]);
+  const [editColor, setEditColor] = useState("indigo");
+  const [deleting, setDeleting] = useState<CourseSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function refresh() {
     const d = await semesterApi.get(semesterId);
@@ -74,6 +91,52 @@ export function SemesterView({ semesterId }: { semesterId: string }) {
       toast.error("Could not create course");
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openEdit(c: CourseSummary) {
+    setEditing(c);
+    setEditName(c.name);
+    setEditProfessor(c.professor);
+    setEditCover(c.cover);
+    setEditColor(c.color);
+    setErr("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing || !editName.trim()) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await courseApi.update(editing.id, {
+        name: editName.trim(),
+        professor: editProfessor.trim(),
+        cover: editCover,
+        color: editColor,
+      });
+      setEditing(null);
+      await refresh();
+      toast.success("Saved");
+    } catch (e2) {
+      setErr(errDetail(e2, "Could not save"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await courseApi.remove(deleting.id);
+      setDeleting(null);
+      await refresh();
+      toast.success("Course deleted");
+    } catch (e2) {
+      toast.error(errDetail(e2, "Could not delete"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -143,23 +206,75 @@ export function SemesterView({ semesterId }: { semesterId: string }) {
             </div>
           ) : (
             courses.map((c) => (
-              <Link key={c.id} href={`/course/${c.id}`} className="group overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40">
-                <CourseCover coverKey={c.cover} className="h-24 w-full" />
-                <div className="p-4">
-                  <h3 className="font-medium leading-snug">{c.name}</h3>
-                  {c.professor && <p className="text-xs text-muted-foreground">{c.professor}</p>}
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span>{c.units} unit{c.units === 1 ? "" : "s"}</span>
-                    <span>{c.items} items</span>
-                    <span className="flex items-center gap-1"><Zap className="h-3.5 w-3.5" /> {c.tokensUsed.toLocaleString()}</span>
+              <div key={c.id} className="group relative">
+                <Link href={`/course/${c.id}`} className="block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40">
+                  <CourseCover coverKey={c.cover} className="h-24 w-full" />
+                  <div className="p-4">
+                    <h3 className="font-medium leading-snug">{c.name}</h3>
+                    {c.professor && <p className="text-xs text-muted-foreground">{c.professor}</p>}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>{c.units} unit{c.units === 1 ? "" : "s"}</span>
+                      <span>{c.items} items</span>
+                      <span className="flex items-center gap-1"><Zap className="h-3.5 w-3.5" /> {c.tokensUsed.toLocaleString()}</span>
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <CardActions show={canWrite} onEdit={() => openEdit(c)} onDelete={() => setDeleting(c)} />
+              </div>
             ))
           )}
         </div>
 
       </main>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit course">
+        <form onSubmit={saveEdit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Course name" />
+            <Input value={editProfessor} onChange={(e) => setEditProfessor(e.target.value)} placeholder="Professor" />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Cover</p>
+            <div className="flex flex-wrap gap-2">
+              {COVER_KEYS.map((k) => (
+                <button key={k} type="button" onClick={() => setEditCover(k)} aria-label={coverOf(k).label} title={coverOf(k).label}
+                  className={cn("overflow-hidden rounded-lg ring-2 transition-all", editCover === k ? "ring-primary" : "ring-transparent hover:ring-border")}>
+                  <CourseCover coverKey={k} className="h-10 w-14" />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-muted-foreground">Accent</span>
+            {ACCENTS.map((a) => (
+              <button key={a} type="button" aria-label={a} onClick={() => setEditColor(a)}
+                className={cn("h-6 w-6 rounded-full ring-2 ring-offset-2 ring-offset-card transition-all", ACCENT_DOT[a], editColor === a ? "ring-foreground" : "ring-transparent")} />
+            ))}
+          </div>
+          {err && <p className="text-sm text-danger">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete course?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">{deleting.name}</span> — including its{" "}
+              {deleting.units} unit{deleting.units === 1 ? "" : "s"} and {deleting.sessions} session
+              {deleting.sessions === 1 ? "" : "s"}. This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }

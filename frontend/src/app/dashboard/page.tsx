@@ -10,7 +10,10 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
+import { CardActions } from "@/components/ui/card-actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useIsAdmin, useRole } from "@/hooks/useRole";
 import { batchApi, semesterApi, type BatchSummary, type MySemester } from "@/lib/api";
@@ -29,6 +32,12 @@ export default function DashboardPage() {
   const [end, setEnd] = useState(2026);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<BatchSummary | null>(null);
+  const [editStart, setEditStart] = useState(2022);
+  const [editEnd, setEditEnd] = useState(2026);
+  const [deleting, setDeleting] = useState<BatchSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     if (!ready || !role) return;
@@ -58,6 +67,47 @@ export default function DashboardPage() {
       toast.error(typeof msg === "string" ? msg : "Could not create batch");
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openEdit(b: BatchSummary) {
+    setEditing(b);
+    setEditStart(b.startYear);
+    setEditEnd(b.endYear);
+    setErr("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await batchApi.update(editing.id, { start_year: editStart, end_year: editEnd });
+      setEditing(null);
+      setBatches(await batchApi.list());
+      toast.success("Saved");
+    } catch (e2) {
+      const msg = (e2 as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setErr(typeof msg === "string" ? msg : "Could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await batchApi.remove(deleting.id);
+      setDeleting(null);
+      setBatches(await batchApi.list());
+      toast.success("Batch deleted");
+    } catch (e2) {
+      const msg = (e2 as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Could not delete");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -115,14 +165,17 @@ export default function DashboardPage() {
               <Empty icon={GraduationCap} title="No batches yet" body="Create an admission batch (e.g. 2022–2026) to add departments." />
             ) : (
               batches.map((b) => (
-                <Link key={b.id} href={`/batch/${b.id}`} className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted">
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary">Batch</p>
-                  <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight">{b.startYear}–{b.endYear}</h3>
-                  <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" /> {b.departments} dept{b.departments === 1 ? "" : "s"}</span>
-                    <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> {b.tokensUsed.toLocaleString()} tok</span>
-                  </div>
-                </Link>
+                <div key={b.id} className="group relative">
+                  <Link href={`/batch/${b.id}`} className="block rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted">
+                    <p className="text-xs font-medium uppercase tracking-wide text-primary">Batch</p>
+                    <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight">{b.startYear}–{b.endYear}</h3>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" /> {b.departments} dept{b.departments === 1 ? "" : "s"}</span>
+                      <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> {b.tokensUsed.toLocaleString()} tok</span>
+                    </div>
+                  </Link>
+                  <CardActions show={isAdmin} onEdit={() => openEdit(b)} onDelete={() => setDeleting(b)} />
+                </div>
               ))
             )
           ) : mine.length === 0 ? (
@@ -138,6 +191,43 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit batch">
+        <form onSubmit={saveEdit} className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Start year</p>
+              <Input type="number" min={2000} max={2100} value={editStart} onChange={(e) => setEditStart(Number(e.target.value))} className="w-32" />
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">End year</p>
+              <Input type="number" min={2000} max={2100} value={editEnd} onChange={(e) => setEditEnd(Number(e.target.value))} className="w-32" />
+            </div>
+          </div>
+          {err && <p className="text-sm text-danger">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        busy={busy}
+        title="Delete batch?"
+        message={
+          deleting && (
+            <>
+              Permanently delete <span className="font-medium text-foreground">Batch {deleting.startYear}–{deleting.endYear}</span>{" "}
+              and its {deleting.departments} department{deleting.departments === 1 ? "" : "s"} — including every semester, course,
+              unit and session inside. This can’t be undone.
+            </>
+          )
+        }
+      />
     </div>
   );
 }
