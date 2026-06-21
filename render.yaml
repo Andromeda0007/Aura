@@ -14,7 +14,9 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Migrations must succeed before boot; the demo seed is best-effort (idempotent)
+    # so a seed hiccup never blocks the service from starting.
+    startCommand: alembic upgrade head && (python scripts/seed_demo.py || echo 'seed skipped') && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -47,10 +49,12 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     startCommand: npm run start -- -p $PORT
+    # NOTE: NEXT_PUBLIC_* are inlined at BUILD time. Set these in the dashboard
+    # before the first build; changing them later needs a manual redeploy/rebuild.
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        sync: false   # set to the aura-backend URL, e.g. https://aura-backend.onrender.com
+        sync: false   # the aura-backend URL, e.g. https://aura-backend.onrender.com
       - key: NEXT_PUBLIC_WS_URL
-        sync: false   # same host as API (wss://aura-backend.onrender.com)
+        sync: false   # same origin as the API (https://aura-backend.onrender.com — socket.io upgrades to wss)
       - key: NEXT_PUBLIC_APP_NAME
         value: Aura

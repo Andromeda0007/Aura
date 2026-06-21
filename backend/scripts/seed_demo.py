@@ -81,12 +81,12 @@ COURSES: dict[tuple[int, int, str, int], list[tuple[str, str, str]]] = {
     ],
 }
 
-# --- demo accounts (dev passwords; change in prod) ---
+# --- demo accounts ---
 # Each gets memberships in the listed (start_year, end_year, department, semester) classes.
 DEMO_USERS = [
     {
         "email": "sagarrane@gmail.com",
-        "password": "temp-password",
+        "password": "teacher-password",
         "full_name": "Sagar Rane",
         "role": UserRole.TEACHER,
         "semesters": [
