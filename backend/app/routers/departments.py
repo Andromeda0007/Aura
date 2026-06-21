@@ -13,9 +13,13 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin
 from app.core.hierarchy import department_session_ids
 from app.models.batch import Batch
+from app.models.command import Command
+from app.models.course import Course
 from app.models.department import Department
 from app.models.semester import Semester
 from app.models.semester_member import SemesterMember
+from app.models.session import Session
+from app.models.unit import Unit
 from app.models.user import User
 from app.routers.stats import aggregate_stats
 from app.schemas.department import DepartmentCreate, DepartmentOut, DepartmentUpdate, SemesterOut
@@ -44,6 +48,13 @@ def create_department(
 ) -> DepartmentOut:
     if db.get(Batch, body.batch_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
+    if db.scalar(
+        select(Department).where(
+            Department.batch_id == body.batch_id,
+            func.lower(Department.name) == body.name.strip().lower(),
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A department named "{body.name}" already exists in this batch')
     dept = Department(batch_id=body.batch_id, name=body.name, color=body.color)
     db.add(dept)
     db.flush()
@@ -72,15 +83,41 @@ def list_departments(
     allowed_depts = accessible_department_ids(db, user)
     if allowed_depts is not None:
         depts = [d for d in depts if d.id in allowed_depts]
+    dept_ids = [d.id for d in depts] or [uuid.uuid4()]
     sem_counts = dict(
         db.execute(
             select(Semester.department_id, func.count())
-            .where(Semester.department_id.in_([d.id for d in depts] or [uuid.uuid4()]))
+            .where(Semester.department_id.in_(dept_ids))
+            .group_by(Semester.department_id)
+        ).all()
+    )
+    course_counts = dict(
+        db.execute(
+            select(Semester.department_id, func.count(Course.id))
+            .join(Course, Course.semester_id == Semester.id)
+            .where(Semester.department_id.in_(dept_ids))
+            .group_by(Semester.department_id)
+        ).all()
+    )
+    token_sums = dict(
+        db.execute(
+            select(Semester.department_id, func.coalesce(func.sum(Command.tokens_used), 0))
+            .select_from(Semester)
+            .join(Course, Course.semester_id == Semester.id)
+            .join(Unit, Unit.course_id == Course.id)
+            .join(Session, Session.unit_id == Unit.id)
+            .join(Command, Command.session_id == Session.id)
+            .where(Semester.department_id.in_(dept_ids))
             .group_by(Semester.department_id)
         ).all()
     )
     return [
-        {**DepartmentOut.model_validate(d).model_dump(mode="json"), "semesters": sem_counts.get(d.id, 0)}
+        {
+            **DepartmentOut.model_validate(d).model_dump(mode="json"),
+            "semesters": sem_counts.get(d.id, 0),
+            "courses": course_counts.get(d.id, 0),
+            "tokensUsed": int(token_sums.get(d.id, 0)),
+        }
         for d in depts
     ]
 
@@ -118,7 +155,16 @@ def update_department(
     _: User = Depends(require_admin),
 ) -> DepartmentOut:
     dept = _dept_or_404(department_id, db)
-    for key, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("name") and db.scalar(
+        select(Department).where(
+            Department.batch_id == dept.batch_id,
+            func.lower(Department.name) == data["name"].strip().lower(),
+            Department.id != dept.id,
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A department named "{data["name"]}" already exists in this batch')
+    for key, value in data.items():
         setattr(dept, key, value)
     db.commit()
     db.refresh(dept)

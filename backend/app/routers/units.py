@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.core.access import assert_semester_access, semester_of_unit
@@ -37,6 +37,13 @@ def create_unit(
     if course is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
     assert_semester_access(db, user, course.semester_id, write=True)
+    if db.scalar(
+        select(Unit).where(
+            Unit.course_id == body.course_id,
+            func.lower(Unit.name) == body.name.strip().lower(),
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A unit named "{body.name}" already exists in this course')
     unit = Unit(course_id=body.course_id, name=body.name, description=body.description, order=body.order)
     db.add(unit)
     db.commit()
@@ -70,7 +77,16 @@ def update_unit(
 ) -> UnitOut:
     unit = _unit_or_404(unit_id, db)
     assert_semester_access(db, user, semester_of_unit(db, unit_id), write=True)
-    for key, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("name") and db.scalar(
+        select(Unit).where(
+            Unit.course_id == unit.course_id,
+            func.lower(Unit.name) == data["name"].strip().lower(),
+            Unit.id != unit.id,
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A unit named "{data["name"]}" already exists in this course')
+    for key, value in data.items():
         setattr(unit, key, value)
     db.commit()
     db.refresh(unit)

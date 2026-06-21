@@ -111,7 +111,13 @@ def update_batch(
     batch = db.get(Batch, batch_id)
     if batch is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
-    for key, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "start_year" in data or "end_year" in data:
+        sy = data.get("start_year", batch.start_year)
+        ey = data.get("end_year", batch.end_year)
+        if db.scalar(select(Batch).where(Batch.start_year == sy, Batch.end_year == ey, Batch.id != batch.id)):
+            raise HTTPException(status.HTTP_409_CONFLICT, f"Batch {sy}–{ey} already exists")
+    for key, value in data.items():
         setattr(batch, key, value)
     db.commit()
     db.refresh(batch)

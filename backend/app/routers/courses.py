@@ -51,6 +51,13 @@ def create_course(
     body: CourseCreate, db: DBSession = Depends(get_db), user: User = Depends(require_staff)
 ) -> CourseOut:
     assert_semester_access(db, user, body.semester_id, write=True)
+    if db.scalar(
+        select(Course).where(
+            Course.semester_id == body.semester_id,
+            func.lower(Course.name) == body.name.strip().lower(),
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A course named "{body.name}" already exists in this class')
     course = Course(
         teacher_id=user.id,
         semester_id=body.semester_id,
@@ -135,7 +142,16 @@ def update_course(
 ) -> CourseOut:
     course = _course_or_404(course_id, db)
     assert_semester_access(db, user, course.semester_id, write=True)
-    for key, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("name") and db.scalar(
+        select(Course).where(
+            Course.semester_id == course.semester_id,
+            func.lower(Course.name) == data["name"].strip().lower(),
+            Course.id != course.id,
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, f'A course named "{data["name"]}" already exists in this class')
+    for key, value in data.items():
         setattr(course, key, value)
     db.commit()
     db.refresh(course)

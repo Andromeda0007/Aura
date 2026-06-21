@@ -16,6 +16,7 @@ class SessionCreate(BaseModel):
 
 
 class SessionUpdate(BaseModel):
+    subject: str | None = Field(default=None, min_length=1, max_length=200)
     unit_id: uuid.UUID | None = None
     language: str | None = Field(default=None, max_length=40)
 

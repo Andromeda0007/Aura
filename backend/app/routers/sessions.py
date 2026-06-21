@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
@@ -82,6 +82,8 @@ def update_session(
     """(Re)assign the session's unit and/or language (only fields the client sends)."""
     sess = _write(session_id, db, user)
     fields = body.model_fields_set
+    if "subject" in fields and body.subject:
+        sess.subject = body.subject
     if "unit_id" in fields and body.unit_id is not None:
         if db.get(Unit, body.unit_id) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Unit not found")
@@ -92,6 +94,18 @@ def update_session(
     db.commit()
     db.refresh(sess)
     return SessionOut.model_validate(sess)
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def delete_session(
+    session_id: uuid.UUID,
+    db: DBSession = Depends(get_db),
+    user: User = Depends(require_staff),
+) -> Response:
+    _write(session_id, db, user)  # 404 / access gate
+    db.delete(_session_or_404(session_id, db))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("", response_model=list[SessionOut])
