@@ -131,7 +131,7 @@ session). So the entire spoken lecture is captured, line by line, as it happens 
 becomes Aura's memory of what was taught.
 
 ### 2. The whiteboard snapshots (what the teacher draws)
-The board is a **tldraw** canvas. While a session is recording, Aura **exports the board
+The board is an **Excalidraw** canvas. While a session is recording, Aura **exports the board
 as a PNG every 10 seconds** (`SNAPSHOT_INTERVAL_MS = 10_000`) and emits a
 `canvas_snapshot` event. On the server, a **Vision worker** runs **OCR** on that image
 (reads the text/equations/labels you drew), and the snapshot + extracted text are
@@ -203,7 +203,7 @@ recent window stays verbatim.
    classroom.
 2. They **allow the microphone** — Aura starts transcribing (the "Hey Aura" wake phrase
    triggers a command; everything else is just captured as the lecture transcript).
-3. They teach and **draw on the whiteboard** (powered by tldraw — pen/touch). Every ~10
+3. They teach and **draw on the whiteboard** (powered by Excalidraw — pen/touch). Every ~10
    seconds Aura snapshots the board and reads it (OCR), so it always knows what's on
    screen.
 4. They say **"Hey Aura, …"** (or type it). Aura combines the recent transcript + what's
@@ -349,7 +349,7 @@ college — and can jump straight into teaching.
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind v4 · tldraw v5 (the whiteboard) · Mermaid (diagrams) · smiles-drawer (chemistry) · Socket.IO client · Zustand · recharts · next-themes (light/dark) |
+| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind v4 · Excalidraw (the whiteboard) · Mermaid (diagrams) · smiles-drawer (chemistry) · Socket.IO client · Zustand · recharts · next-themes (light/dark) |
 | Backend | FastAPI · python-socketio · SQLAlchemy 2 · Alembic · Pydantic v2 · Argon2 · JWT (access + refresh) · structlog |
 | AI (free tiers) | **Groq** primary (`llama-3.1-8b-instant` to classify, `llama-3.3-70b-versatile` to generate) → **Gemini** fallback. Keyless helpers: **PubChem** (chemistry structures) and **Pollinations** (images). Browser Web Speech for speech-to-text. |
 | Data | PostgreSQL (no Redis — the realtime workers run in-process). |
@@ -362,7 +362,7 @@ college — and can jump straight into teaching.
 flowchart TB
     subgraph Client["Browser — Next.js"]
         SP[Web Speech<br/>speech to text]
-        BD[tldraw whiteboard<br/>PNG every 10s]
+        BD[Excalidraw whiteboard<br/>PNG every 10s]
         SC[Socket.IO client]
         AX[axios REST<br/>JWT + refresh]
     end
@@ -406,7 +406,7 @@ flowchart TB
 Browser (Next.js)                         FastAPI + Socket.IO (one ASGI app)
   Web Speech - transcript_text -┐           ├- STT worker        -> transcripts
   "Hey Aura" - voice_command  --┤  WSS      ├- Vision worker     -> OCR -> whiteboard_logs
-  tldraw 10s - canvas_snapshot -┤ ------->   ├- LLM worker        -> classify -> fuse -> Groq/Gemini
+  Excalidraw - canvas_snapshot -┤ ------->   ├- LLM worker        -> classify -> fuse -> Groq/Gemini
   REST (axios, JWT + refresh) --┘           └- Compression worker (auto on token overflow)
                                             All workers are in-process asyncio tasks.
                                             Postgres   ·   Groq -> Gemini   ·   PubChem / Pollinations

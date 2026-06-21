@@ -3,13 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "copy:excalidraw-fonts": "rm -rf public/fonts && cp -r node_modules/@excalidraw/excalidraw/dist/prod/fonts public/fonts",
+    "predev": "npm run copy:excalidraw-fonts",
     "dev": "next dev",
+    "prebuild": "npm run copy:excalidraw-fonts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
     "axios": "^1.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -28,7 +32,6 @@
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "tldraw": "^5.1.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

@@ -63,7 +63,7 @@ export function AiPanel() {
 
     if (!payload) payload = { kind: "text", text: responseToBoardText(r) };
 
-    // Custom MIME only — so tldraw's native text-drop doesn't also fire (no dupes).
+    // Custom MIME only — so the board's native text-drop doesn't also fire (no dupes).
     e.dataTransfer.setData(BOARD_DND_MIME, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copy";
   }

@@ -1,46 +1,104 @@
 "use client";
 
+import "@excalidraw/excalidraw/index.css";
+
+import {
+  Excalidraw,
+  convertToExcalidrawElements,
+  exportToBlob,
+  getDataURL,
+  getVisibleSceneBounds,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/excalidraw";
 import { Grid3x3, LayoutTemplate, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { Tldraw, type Editor } from "tldraw";
-import "tldraw/tldraw.css";
 
 import { BOARD_DND_MIME, type BoardDragPayload } from "@/lib/board-content";
 import { getSocket } from "@/lib/socket";
 
-const SNAPSHOT_INTERVAL_MS = 10_000;
+// Self-host Excalidraw's fonts/assets from /public (copied in the build step) so the
+// board never depends on an external CDN at runtime.
+if (typeof window !== "undefined") {
+  (window as unknown as { EXCALIDRAW_ASSET_PATH?: string }).EXCALIDRAW_ASSET_PATH = "/";
+}
 
-/** tldraw board. Native pen/touch/mouse via pointer events; theme follows the app.
- *  While recording, exports a PNG every 10s and emits canvas_snapshot.
- *  Images/PDFs can be pasted or dragged straight onto the canvas (tldraw built-in). */
+const SNAPSHOT_INTERVAL_MS = 10_000;
+const MAX_DROP_DIM = 360; // cap the size of dropped images on the board
+
+// Types derived from the runtime API so we avoid fragile deep type-imports.
+type ExcalidrawAPI = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>["excalidrawAPI"]>>[0];
+type FileData = Parameters<ExcalidrawAPI["addFiles"]>[0][number];
+type Skeleton = NonNullable<Parameters<typeof convertToExcalidrawElements>[0]>[number];
+
+function scaled(w: number, h: number, max = MAX_DROP_DIM) {
+  const s = Math.min(1, max / Math.max(w || max, h || max));
+  return { width: Math.round((w || max) * s), height: Math.round((h || max) * s) };
+}
+
+function loadImageSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 300, height: img.naturalHeight || 200 });
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
+}
+
+// Excalidraw has no native SVG element, so rasterize the SVG markup to a PNG data URL.
+function svgToPng(svg: string): Promise<{ dataURL: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || 480;
+      const height = img.naturalHeight || 360;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      URL.revokeObjectURL(url);
+      if (!ctx) return reject(new Error("no 2d context"));
+      ctx.drawImage(img, 0, 0);
+      resolve({ dataURL: canvas.toDataURL("image/png"), width, height });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("svg rasterize failed"));
+    };
+    img.src = url;
+  });
+}
+
+/** Excalidraw board. Native pen/touch/mouse; theme follows the app. While recording,
+ *  exports a PNG every 10s and emits canvas_snapshot. Aura cards (image/svg/text) can be
+ *  dragged from the AI panel straight onto the canvas. */
 export function Board({ sessionId, recording }: { sessionId: string; recording: boolean }) {
-  const editorRef = useRef<Editor | null>(null);
+  const apiRef = useRef<ExcalidrawAPI | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const [grid, setGrid] = useState(false);
   const [dropActive, setDropActive] = useState(false);
 
-  function applyTheme(editor: Editor | null) {
-    editor?.user.updateUserPreferences({
-      colorScheme: resolvedTheme === "dark" ? "dark" : "light",
-    });
-  }
-
-  useEffect(() => {
-    applyTheme(editorRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTheme]);
-
+  // Snapshot loop: every 10s while recording, export the board to PNG and emit it.
   useEffect(() => {
     if (!recording) return;
     const tick = async () => {
-      const editor = editorRef.current;
-      if (!editor) return;
-      const ids = [...editor.getCurrentPageShapeIds()];
-      if (ids.length === 0) return; // nothing drawn yet
+      const api = apiRef.current;
+      if (!api) return;
+      const elements = api.getSceneElements();
+      if (elements.length === 0) return; // nothing drawn yet
       try {
-        const { url } = await editor.toImageDataUrl(ids, { format: "png", background: true });
+        const blob = await exportToBlob({
+          elements,
+          appState: { ...api.getAppState(), exportBackground: true },
+          files: api.getFiles(),
+          mimeType: "image/png",
+          exportPadding: 16,
+        });
+        const url = await getDataURL(blob);
         getSocket()?.emit("canvas_snapshot", { sessionId, imageData: url, pageNumber: 1 });
       } catch {
         /* export can fail mid-edit; next tick retries */
@@ -50,8 +108,31 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
     return () => clearInterval(id);
   }, [recording, sessionId]);
 
-  // Accept Aura cards dragged from the AI panel. Native capture-phase listeners
-  // run before tldraw's own drop handling, so we fully own these drops.
+  // Merge new elements into the scene. updateScene REPLACES the scene, so we must
+  // spread the existing elements in — otherwise every add wipes the board.
+  function addSkeletons(skeletons: Skeleton[]) {
+    const api = apiRef.current;
+    if (!api) return;
+    const next = convertToExcalidrawElements(skeletons);
+    api.updateScene({ elements: [...api.getSceneElements(), ...next] });
+  }
+
+  async function addImageDataUrl(dataURL: string, mimeType: string, at: { x: number; y: number }) {
+    const api = apiRef.current;
+    if (!api) return;
+    const { width, height } = await loadImageSize(dataURL).catch(() => ({ width: 300, height: 200 }));
+    const dims = scaled(width, height);
+    const fileId = crypto.randomUUID();
+    api.addFiles([{ id: fileId, dataURL, mimeType, created: Date.now() } as FileData]);
+    addSkeletons([{ type: "image", fileId, x: at.x, y: at.y, ...dims } as Skeleton]);
+  }
+
+  function addText(text: string, at: { x: number; y: number }) {
+    addSkeletons([{ type: "text", x: at.x, y: at.y, text, fontSize: 20 } as Skeleton]);
+  }
+
+  // Accept Aura cards dragged from the AI panel. Native capture-phase listeners run
+  // before Excalidraw's own drop handling, so we fully own these drops.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -74,35 +155,40 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
       e.preventDefault();
       e.stopPropagation();
       setDropActive(false);
-      const editor = editorRef.current;
-      if (!editor || !e.dataTransfer) return;
+      const api = apiRef.current;
+      if (!api || !e.dataTransfer) return;
       let payload: BoardDragPayload;
       try {
         payload = JSON.parse(e.dataTransfer.getData(BOARD_DND_MIME)) as BoardDragPayload;
       } catch {
         return;
       }
-      const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+      const at = viewportCoordsToSceneCoords({ clientX: e.clientX, clientY: e.clientY }, api.getAppState());
+
       if (payload.kind === "image" && payload.imageUrl) {
-        const url = payload.imageUrl;
-        // tldraw's url handler makes a bookmark, not an image — so fetch the bytes
-        // and drop a File. Fall back to a bookmark if the host blocks CORS.
+        const src = payload.imageUrl;
         void (async () => {
           try {
-            const res = await fetch(url, { mode: "cors" });
+            const res = await fetch(src, { mode: "cors" });
             const blob = await res.blob();
-            const base = (url.split("/").pop() || "image").split("?")[0];
-            const name = base.includes(".") ? base : `${base || "image"}.png`;
-            const file = new File([blob], name, { type: blob.type || "image/png" });
-            await editor.putExternalContent({ type: "files", files: [file], point });
+            const dataURL = await getDataURL(blob);
+            await addImageDataUrl(dataURL, blob.type || "image/png", at);
           } catch {
-            await editor.putExternalContent({ type: "url", url, point });
+            addText(src, at); // CORS-blocked: drop the link as text instead
           }
         })();
       } else if (payload.kind === "svg" && payload.svg) {
-        void editor.putExternalContent({ type: "svg-text", text: payload.svg, point });
+        const svg = payload.svg;
+        void (async () => {
+          try {
+            const { dataURL } = await svgToPng(svg);
+            await addImageDataUrl(dataURL, "image/png", at);
+          } catch {
+            /* ignore unrenderable svg */
+          }
+        })();
       } else if (payload.text) {
-        void editor.putExternalContent({ type: "text", text: payload.text, point });
+        addText(payload.text, at);
       }
     };
 
@@ -114,50 +200,52 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
       el.removeEventListener("dragleave", onDragLeave, true);
       el.removeEventListener("drop", onDrop, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function toggleGrid() {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const next = !editor.getInstanceState().isGridMode;
-    editor.updateInstanceState({ isGridMode: next });
+    const api = apiRef.current;
+    if (!api) return;
+    const next = !api.getAppState().gridModeEnabled;
+    api.updateScene({ appState: { gridModeEnabled: next } });
     setGrid(next);
   }
 
   function cornellTemplate() {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const b = editor.getViewportPageBounds();
+    const api = apiRef.current;
+    if (!api) return;
+    const [minX, minY, maxX, maxY] = getVisibleSceneBounds(api.getAppState());
     const pad = 40;
-    const x = b.x + pad;
-    const y = b.y + pad;
-    const w = Math.min(b.w - pad * 2, 1000);
-    const h = Math.min(b.h - pad * 2, 700);
+    const x = minX + pad;
+    const y = minY + pad;
+    const w = Math.min(maxX - minX - pad * 2, 1000);
+    const h = Math.min(maxY - minY - pad * 2, 700);
     const cue = w * 0.3;
     const summaryH = h * 0.18;
     // Cue column | notes area, with a summary strip across the bottom.
-    editor.createShapes([
-      { type: "geo", x, y, props: { w: cue, h: h - summaryH, geo: "rectangle" } },
-      { type: "geo", x: x + cue, y, props: { w: w - cue, h: h - summaryH, geo: "rectangle" } },
-      { type: "geo", x, y: y + (h - summaryH), props: { w, h: summaryH, geo: "rectangle" } },
-    ]);
+    addSkeletons([
+      { type: "rectangle", x, y, width: cue, height: h - summaryH },
+      { type: "rectangle", x: x + cue, y, width: w - cue, height: h - summaryH },
+      { type: "rectangle", x, y: y + (h - summaryH), width: w, height: summaryH },
+    ] as Skeleton[]);
   }
 
   function clearBoard() {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const ids = [...editor.getCurrentPageShapeIds()];
-    if (ids.length && confirm("Clear everything on the board?")) editor.deleteShapes(ids);
+    const api = apiRef.current;
+    if (!api) return;
+    if (api.getSceneElements().length && confirm("Clear everything on the board?")) {
+      api.updateScene({ elements: [] });
+    }
   }
 
   return (
     <div ref={containerRef} className="absolute inset-0">
-      <Tldraw
-        onMount={(editor) => {
-          editorRef.current = editor;
-          applyTheme(editor);
-          setGrid(editor.getInstanceState().isGridMode);
+      <Excalidraw
+        excalidrawAPI={(api) => {
+          apiRef.current = api;
+          setGrid(api.getAppState().gridModeEnabled);
         }}
+        theme={resolvedTheme === "dark" ? "dark" : "light"}
       />
       {/* Drop highlight while an Aura card is dragged over the board */}
       {dropActive && (
