@@ -1,25 +1,26 @@
 # Aura — A Real-Time Multi-Modal Teaching Assistant
 
-**Aura is the AI that lives on your classroom whiteboard.** It sits on the smartboard while a teacher teaches. It **listens** to what's being
-said, **watches** what's drawn on the board, and the moment the teacher says
-**"Hey Aura, …"** it instantly produces the thing they asked for — a quiz, a flow
-diagram, a chemical structure, a generated image, a worked numerical, a summary — and
-drops it right onto the board, grounded in what was just being taught.
+**Aura is the AI that lives on your classroom whiteboard.** It sits on the smartboard
+while a teacher teaches. It **listens** to what's being said, **watches** what's drawn on
+the board, and the moment the teacher says **"Hey Aura, …"** it instantly produces the
+thing they asked for — a quiz, a flow diagram, a chemical structure, a generated image, a
+worked numerical, a summary — and drops it right onto the board, grounded in what was just
+being taught.
 
 No tab-switching, no copy-pasting from another tool, no breaking the flow of the class.
 You talk, you draw, and Aura keeps up.
 
 ```mermaid
 flowchart LR
-    T([👩‍🏫 Teacher talks & draws]) -->|speech to text| L[Aura listens]
+    T([Teacher talks & draws]) -->|speech to text| L[Aura listens]
     T -->|board snapshot to OCR| W[Aura watches the board]
     L --> CTX[(Live context<br/>what was just taught)]
     W --> CTX
-    say["🗣️ 'Hey Aura, make a quiz…'"] --> CTX
+    say["'Hey Aura, make a quiz…'"] --> CTX
     CTX --> GEN[Aura generates]
-    GEN --> CARD[📇 A result card:<br/>quiz · diagram · image · summary…]
-    CARD -->|drag| BOARD[🖍️ onto the whiteboard]
-    CARD -->|share code + QR| STU([🧑‍🎓 Students])
+    GEN --> CARD[A result card:<br/>quiz · diagram · image · summary…]
+    CARD -->|drag| BOARD[onto the whiteboard]
+    CARD -->|share code + QR| STU([Students])
 ```
 
 > Spec of record: [`AURA_BUILD.md`](./AURA_BUILD.md) · Design notes:
@@ -28,29 +29,46 @@ flowchart LR
 
 ---
 
-## ⭐ What you can ask Aura to do
+## Live demo
+
+- **App:** https://aura-frontend-qxgz.onrender.com
+- **API:** https://aura-backend-hsce.onrender.com ([health check](https://aura-backend-hsce.onrender.com/health))
+
+Sign in with one of the demo accounts:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `ankit@gmail.com` | `admin-password` |
+| Teacher | `sagarrane@gmail.com` | `teacher-password` |
+
+> Hosted on Render's free tier, so the first load after a while of inactivity can take
+> ~50 seconds to wake up.
+
+---
+
+## What you can ask Aura to do
 
 This is the heart of the app. While in a live class, the teacher either **says
 "Hey Aura, …"** or types a command, and Aura figures out *what kind* of thing you want
 and generates it. Here's the full menu, with real examples you can try:
 
-### 🧠 Quizzes
+### Quizzes
 Turn whatever you just taught into a multiple-choice quiz, complete with a **shareable
 code + QR** so students can take it on their phones — no login needed.
 - *"Hey Aura, create a quiz on this"*
 - *"Hey Aura, make a 5-question quiz on CNNs"*
 
-### 📝 Summaries, lists & explanations
+### Summaries, lists & explanations
 - *"Hey Aura, summarize this"* → a tidy summary with key points
 - *"Hey Aura, list the types of neural networks"* / *"list this"* → a clean list
 - *"Hey Aura, explain backpropagation"* → a clear explanation
 - *"Hey Aura, give an example of recursion"* → a worked example
 
-### 💡 Facts & answers
+### Facts & answers
 - *"Hey Aura, tell me an interesting fact about entropy"* → a fact (with a source when one's available)
 - *"Hey Aura, what's the time complexity of quicksort?"* → a direct **answer + the reasoning** behind it
 
-### 📊 Diagrams (flowcharts, trees, graphs, data structures)
+### Diagrams (flowcharts, trees, graphs, data structures)
 Aura draws proper diagrams — not blurry pictures, but real, clean diagrams with nodes,
 edges, values, and even traversals.
 - *"Hey Aura, draw the flow diagram of asymmetric key cryptography"*
@@ -59,21 +77,21 @@ edges, values, and even traversals.
 - *"Hey Aura, draw a graph and show its BFS and DFS traversal"*
 - *"Hey Aura, draw a stack / a queue"*
 
-### ⚗️ Chemistry structures
+### Chemistry structures
 Real molecular structures, drawn from the chemistry, not guessed.
 - *"Hey Aura, draw the image of benzene"*
 - *"Hey Aura, draw the structure of alcohol (ethanol)"*
 - *"Hey Aura, show me the structure of glucose"*
 
-### 🖼️ Images
+### Images
 For things that genuinely need a picture, Aura generates one.
 - *"Hey Aura, draw an image of a neuron"*
 - *"Hey Aura, show me an image of the solar system"*
 
-### 🔢 Numericals you can solve
+### Numericals you can solve
 - *"Hey Aura, give a numerical on Ohm's law"* → a fillable problem; type your answer and Aura checks it.
 
-### 🧹 Board cleanup
+### Board cleanup
 - *"Hey Aura, clean up the board"* → a tidied version of the messy whiteboard.
 
 **How does Aura know which one you mean?** Every command is **classified into one
@@ -84,15 +102,15 @@ image generator — automatically.
 
 ```mermaid
 flowchart TD
-    A["🗣️ 'Hey Aura, draw the image of benzene'"] --> B{Classify intent}
+    A["'Hey Aura, draw the image of benzene'"] --> B{Classify intent}
     B -->|quiz| Q[Quiz generator]
     B -->|summarize / list / explain| S[Text generators]
     B -->|diagram: tree / graph / flow| D[Mermaid diagram engine]
-    B -->|chemistry| C[SMILES → structure drawer]
+    B -->|chemistry| C[SMILES to structure drawer]
     B -->|image| I[Image generator]
     B -->|numerical| N[Fillable numerical]
     B -->|answer| AN[Answer + reasoning]
-    Q & S & D & C & I & N & AN --> R[📇 Result card streamed to the board]
+    Q & S & D & C & I & N & AN --> R[Result card streamed to the board]
 ```
 
 Every result is **saved against the exact class it came from**, so it also becomes part
@@ -101,7 +119,7 @@ of that course's searchable library — and it can be **dragged onto the whitebo
 
 ---
 
-## 🔬 Under the hood — how it actually works
+## Under the hood — how it actually works
 
 Here's the full picture of what happens while a class is running, end to end.
 
@@ -131,7 +149,7 @@ sequenceDiagram
     participant T as Teacher
     participant B as Browser
     participant S as Server (Socket.IO)
-    participant AI as Groq → Gemini
+    participant AI as Groq to Gemini
     participant DB as Postgres
     T->>B: "Hey Aura, make a quiz on CNNs"
     B->>S: voice_command
@@ -141,7 +159,7 @@ sequenceDiagram
     S->>AI: generate (llama-3.3-70b, strong) with that context
     AI-->>S: quiz JSON (+ token usage)
     S->>DB: save Command (tokens_used) + Quiz (share code)
-    S-->>B: command_response → result card on the board
+    S-->>B: command_response, result card on the board
 ```
 
 ### 4. The context Aura reasons over
@@ -178,7 +196,7 @@ recent window stays verbatim.
 
 ---
 
-## 🧑‍🏫 The live classroom, step by step
+## The live classroom, step by step
 
 1. A teacher opens a **unit** of their course and clicks **Start** with a subject
    (e.g. *"Intro to CNNs"*). This creates a **session** and drops them into the live
@@ -199,28 +217,28 @@ Students can **join live** with a code to follow along, or take a shared **quiz*
 
 ---
 
-## 🗂️ Where everything lives — the academic structure
+## Where everything lives — the academic structure
 
 Aura isn't a single shared whiteboard — it's organized exactly like a real college, so
 every quiz, diagram, and session is filed under the right class. It's a six-level tree:
 
 ```
-Batch              "2022–2026"                  ← an admission cohort (the joining/passing years)
-└─ Department      "Computer Science"           ← creating one auto-makes Semesters 1–8
-   └─ Semester     "Semester 8"                 ← the actual class a student belongs to
-      └─ Course    "Deep Learning"  (Prof. Sagar Rane)   ← a subject, with a professor
-         └─ Unit   "Convolutional Neural Networks"        ← a chapter
-            └─ Session  "Intro to CNNs"          ← ONE live class — where "Hey Aura" happens
+Batch              "2022–2026"                  <- an admission cohort (the joining/passing years)
+└─ Department      "Computer Science"           <- creating one auto-makes Semesters 1–8
+   └─ Semester     "Semester 8"                 <- the actual class a student belongs to
+      └─ Course    "Deep Learning"  (Prof. Sagar Rane)   <- a subject, with a professor
+         └─ Unit   "Convolutional Neural Networks"        <- a chapter
+            └─ Session  "Intro to CNNs"          <- ONE live class — where "Hey Aura" happens
 ```
 
 ```mermaid
 flowchart TD
-    B["🎓 Batch<br/>2022–2026"] --> D["🏛️ Department<br/>Computer Science"]
-    D --> S["📅 Semester 8"]
-    S --> C["📘 Course: Deep Learning<br/>👤 Prof. Sagar Rane"]
-    C --> U["📑 Unit: CNNs"]
-    U --> SE["🎤 Session: Intro to CNNs<br/>(live AI happens here)"]
-    SE --> ART["📇 Quizzes · diagrams · images · summaries"]
+    B["Batch<br/>2022–2026"] --> D["Department<br/>Computer Science"]
+    D --> S["Semester 8"]
+    S --> C["Course: Deep Learning<br/>Prof. Sagar Rane"]
+    C --> U["Unit: CNNs"]
+    U --> SE["Session: Intro to CNNs<br/>(live AI happens here)"]
+    SE --> ART["Quizzes · diagrams · images · summaries"]
 ```
 
 What each level means, in plain words:
@@ -240,7 +258,7 @@ covering everything beneath it.
 
 ---
 
-## 👥 Who uses Aura — the three roles
+## Who uses Aura — the three roles
 
 You log in by **picking your role** (Admin / Teacher / Student) and entering your email +
 password. The role you pick must match your real account — the server is the source of
@@ -248,9 +266,9 @@ truth. **There is no public signup; an admin creates every account.**
 
 | Role | What they can do |
 |---|---|
-| 🛡️ **Admin** | Everything. Builds and edits the whole structure (batches, departments, courses, units, sessions) and creates/manages all the people. |
-| 🎓 **Teacher** | Runs classes in the semesters they're assigned to — adds courses & units, starts live sessions, uses "Hey Aura". |
-| 📖 **Student** | Belongs to exactly one semester; sees their courses and material, and takes quizzes. |
+| **Admin** | Everything. Builds and edits the whole structure (batches, departments, courses, units, sessions) and creates/manages all the people. |
+| **Teacher** | Runs classes in the semesters they're assigned to — adds courses & units, starts live sessions, uses "Hey Aura". |
+| **Student** | Belongs to exactly one semester; sees their courses and material, and takes quizzes. |
 
 **How people connect to classes.** A user isn't tied to a course directly — they're
 linked to **semesters** (a link Aura calls a *membership*):
@@ -274,7 +292,7 @@ college — and can jump straight into teaching.
 
 ---
 
-## 🚀 How to actually use it (for someone who's never seen it)
+## How to actually use it (for someone who's never seen it)
 
 ### If you're an **Admin** — set up the college & the people
 
@@ -296,12 +314,13 @@ college — and can jump straight into teaching.
    - **Admin** → no class assignment needed.
    - Click **Create account**.
 4. **Manage people**: the People page is split into **Admins / Teachers / Students**.
-   Hit the **✏️ edit** icon on anyone to rename them, enable/disable the account, or
-   **move them to another semester** (e.g. promote a student to next sem). The **🗑️**
-   icon deletes them.
+   Use the **edit icon** on anyone to rename them, enable/disable the account, or
+   **move them to another semester** (e.g. promote a student to next sem). The **delete
+   icon** removes them.
 5. **Edit / delete anything**: hover over any card (batch, department, course, unit) to
-   reveal ✏️ and 🗑️. Deletes show a **cascade warning** (e.g. deleting a batch tells you
-   how many departments/semesters/courses go with it) so nothing disappears by surprise.
+   reveal its **edit** and **delete** icons. Deletes show a **cascade warning** (e.g.
+   deleting a batch tells you how many departments/semesters/courses go with it) so
+   nothing disappears by surprise.
 
 ### If you're a **Teacher** (like Sagar Rane) — teach a class
 
@@ -326,7 +345,7 @@ college — and can jump straight into teaching.
 
 ---
 
-## 🛠️ Stack
+## Stack
 
 | Layer | Tech |
 |---|---|
@@ -337,30 +356,74 @@ college — and can jump straight into teaching.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Client["Browser — Next.js"]
+        SP[Web Speech<br/>speech to text]
+        BD[tldraw whiteboard<br/>PNG every 10s]
+        SC[Socket.IO client]
+        AX[axios REST<br/>JWT + refresh]
+    end
+
+    subgraph Server["Backend — FastAPI + Socket.IO (one ASGI app)"]
+        REST[REST routers<br/>auth · batches … sessions]
+        WS[Socket.IO server]
+        subgraph Workers["in-process asyncio workers"]
+            STT[STT worker]
+            VIS[Vision worker<br/>OCR]
+            LLM[LLM worker<br/>classify + generate]
+            CMP[Compression worker]
+        end
+        SVC[AIService · ContextManager]
+    end
+
+    DB[(PostgreSQL)]
+
+    subgraph AIsvc["Free AI services"]
+        GROQ[Groq to Gemini]
+        PUB[PubChem]
+        POL[Pollinations]
+    end
+
+    SP --> SC
+    BD --> SC
+    SC <-->|WSS| WS
+    AX <-->|HTTPS| REST
+    WS --> STT & VIS & LLM
+    LLM --> SVC
+    CMP --> SVC
+    SVC --> GROQ & PUB & POL
+    REST --> DB
+    STT --> DB
+    VIS --> DB
+    LLM --> DB
+    CMP --> DB
+```
 
 ```
 Browser (Next.js)                         FastAPI + Socket.IO (one ASGI app)
-  Web Speech ─ transcript_text ─┐           ├─ STT worker        → transcripts
-  "Hey Aura" ─ voice_command  ──┤  WSS      ├─ Vision worker     → OCR → whiteboard_logs
-  tldraw 10s ─ canvas_snapshot ─┤ ───────►  ├─ LLM worker        → classify → fuse → Groq/Gemini
-  REST (axios, JWT + refresh) ──┘           └─ Compression worker (auto on token overflow)
+  Web Speech - transcript_text -┐           ├- STT worker        -> transcripts
+  "Hey Aura" - voice_command  --┤  WSS      ├- Vision worker     -> OCR -> whiteboard_logs
+  tldraw 10s - canvas_snapshot -┤ ------->   ├- LLM worker        -> classify -> fuse -> Groq/Gemini
+  REST (axios, JWT + refresh) --┘           └- Compression worker (auto on token overflow)
                                             All workers are in-process asyncio tasks.
-                                            Postgres   ·   Groq → Gemini   ·   PubChem / Pollinations
+                                            Postgres   ·   Groq -> Gemini   ·   PubChem / Pollinations
 ```
 
 One uvicorn process serves HTTP **and** WebSockets and runs the realtime workers — there's
 no separate queue or Redis to operate.
 
-**Command flow:** `voice/typed command → classify intent (fast model) → gather context
-(recent transcripts + board OCR + compressed session history) → generate (strong model) →
-save as a Command (+ a Quiz with a share code if it's a quiz) → stream the result card
+**Command flow:** `voice/typed command -> classify intent (fast model) -> gather context
+(recent transcripts + board OCR + compressed session history) -> generate (strong model) ->
+save as a Command (+ a Quiz with a share code if it's a quiz) -> stream the result card
 back over WebSocket`. A live **token chip** shows context usage; when it overflows, a
 compression worker summarizes older history automatically.
 
 ---
 
-## 🗃️ Data model
+## Data model
 
 14 tables: `users` · `batches` · `departments` · `semesters` · `semester_members` ·
 `courses` · `units` · `sessions` (+ compressed history) · `transcripts` ·
@@ -368,7 +431,7 @@ compression worker summarizes older history automatically.
 
 ---
 
-## 💻 Run it locally
+## Run it locally
 
 **Prereqs:** Docker, Python 3.13, Node 20+, a free Groq key
 ([console.groq.com](https://console.groq.com)). Use Chrome/Edge for the voice features.
@@ -400,8 +463,8 @@ change it.
 
 | Role | Email | Password |
 |---|---|---|
-| 🛡️ Admin | `ankit@gmail.com` | `admin-password` |
-| 🎓 Teacher | `sagarrane@gmail.com` | `teacher-password` |
+| Admin | `ankit@gmail.com` | `admin-password` |
+| Teacher | `sagarrane@gmail.com` | `teacher-password` |
 
 Quickest tour: log in as the **teacher** → open **Deep Learning** → a unit → **Start** a
 session → allow the mic → say **"Hey Aura, draw the flow diagram of asymmetric key
@@ -409,17 +472,17 @@ cryptography."**
 
 ---
 
-## ☁️ Deploy (Render — free tier)
+## Deploy (Render — free tier)
 
 The repo ships a Render **Blueprint** ([`render.yaml`](./render.yaml)) for three services:
-`aura-db` (Postgres), `aura-backend` (FastAPI + Socket.IO), and `aura-frontend` (Next.js).
-The backend runs migrations + an idempotent demo seed on boot. The full step-by-step —
-connecting the repo, the secrets to set, and the build-time env-var gotcha — is in
-**[`DEPLOY.md`](./DEPLOY.md)**.
+`aura-db` (Postgres), `aura-backend` (FastAPI + Socket.IO), and `aura-frontend` (Next.js),
+all in the Singapore region. The backend runs migrations + an idempotent demo seed on boot.
+The full step-by-step — connecting the repo, the secrets to set, and the build-time env-var
+gotcha — is in **[`DEPLOY.md`](./DEPLOY.md)**.
 
 ---
 
-## ✅ Tests
+## Tests
 
 ```bash
 cd backend && .venv/bin/python -m pytest -q     # 74 tests (auth, RBAC, hierarchy CRUD, AI parsing, API)
@@ -431,7 +494,7 @@ cd frontend && npx vitest run                    # 24 tests
 
 ---
 
-## 🔌 API overview
+## API overview
 
 ```
 GET  /health · /health/db
@@ -447,7 +510,7 @@ WS   out: transcript_update · command_response · board_insight · compression_
 
 ---
 
-## ❓ FAQ
+## FAQ
 
 **Do I sign up?** No. An admin creates your account and tells you your email + temporary
 password. Pick your role on the login screen and log in.
@@ -476,7 +539,7 @@ $0 (with cold starts after idle).
 
 ---
 
-## 🔒 Security
+## Security
 
 Argon2 password hashing · JWT (algorithm allow-listed, access/refresh types checked) ·
 **no self-signup; roles are admin-assigned** · object-level access checks on every route
