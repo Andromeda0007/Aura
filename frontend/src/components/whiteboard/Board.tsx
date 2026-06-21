@@ -26,11 +26,38 @@ if (typeof window !== "undefined") {
 
 const SNAPSHOT_INTERVAL_MS = 10_000;
 const MAX_DROP_DIM = 360; // cap the size of dropped images on the board
+const IMAGE_MIMES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp", "image/gif", "image/bmp"];
 
 // Types derived from the runtime API so we avoid fragile deep type-imports.
 type ExcalidrawAPI = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>["excalidrawAPI"]>>[0];
 type FileData = Parameters<ExcalidrawAPI["addFiles"]>[0][number];
 type Skeleton = NonNullable<Parameters<typeof convertToExcalidrawElements>[0]>[number];
+type InitialData = React.ComponentProps<typeof Excalidraw>["initialData"];
+type ChangeHandler = NonNullable<React.ComponentProps<typeof Excalidraw>["onChange"]>;
+
+const normalizeMime = (m: string) => (IMAGE_MIMES.includes(m) ? m : "image/png");
+
+// --- persistence: keep the board across refreshes, per session (localStorage) ---
+const boardKey = (sid: string) => `aura-board-${sid}`;
+
+function loadBoard(sid: string): InitialData {
+  try {
+    const raw = localStorage.getItem(boardKey(sid));
+    if (!raw) return undefined;
+    const { elements, files } = JSON.parse(raw);
+    return { elements: elements ?? [], files: files ?? {} } as InitialData;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveBoard(sid: string, data: string) {
+  try {
+    localStorage.setItem(boardKey(sid), data);
+  } catch {
+    /* quota exceeded (large images) — skip this save, keep the last good one */
+  }
+}
 
 function scaled(w: number, h: number, max = MAX_DROP_DIM) {
   const s = Math.min(1, max / Math.max(w || max, h || max));
@@ -81,6 +108,20 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
   const { resolvedTheme } = useTheme();
   const [grid, setGrid] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  // Restore the board for this session (survives refresh).
+  const [initialData] = useState<InitialData>(() => loadBoard(sessionId));
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced persist on every edit (drawing, drops, clears all flow through here).
+  const handleChange: ChangeHandler = (elements, _appState, files) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveBoard(sessionId, JSON.stringify({ elements, files }));
+    }, 600);
+  };
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
 
   // Snapshot loop: every 10s while recording, export the board to PNG and emit it.
   useEffect(() => {
@@ -120,11 +161,16 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
   async function addImageDataUrl(dataURL: string, mimeType: string, at: { x: number; y: number }) {
     const api = apiRef.current;
     if (!api) return;
-    const { width, height } = await loadImageSize(dataURL).catch(() => ({ width: 300, height: 200 }));
+    const { width, height } = await loadImageSize(dataURL).catch(() => ({ width: 400, height: 300 }));
     const dims = scaled(width, height);
     const fileId = crypto.randomUUID();
-    api.addFiles([{ id: fileId, dataURL, mimeType, created: Date.now() } as FileData]);
-    addSkeletons([{ type: "image", fileId, x: at.x, y: at.y, ...dims } as Skeleton]);
+    // Register the file FIRST so the image element resolves against the cache, then add
+    // the element marked "saved" (file is available) so Excalidraw renders it immediately.
+    api.addFiles([{ id: fileId, dataURL, mimeType: normalizeMime(mimeType), created: Date.now() } as FileData]);
+    const els = convertToExcalidrawElements([
+      { type: "image", fileId, x: at.x, y: at.y, ...dims, status: "saved" } as Skeleton,
+    ]);
+    api.updateScene({ elements: [...api.getSceneElements(), ...els] });
   }
 
   function addText(text: string, at: { x: number; y: number }) {
@@ -245,6 +291,8 @@ export function Board({ sessionId, recording }: { sessionId: string; recording: 
           apiRef.current = api;
           setGrid(api.getAppState().gridModeEnabled);
         }}
+        initialData={initialData}
+        onChange={handleChange}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
       />
       {/* Drop highlight while an Aura card is dragged over the board */}
