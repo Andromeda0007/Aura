@@ -39,45 +39,45 @@ DEPARTMENTS = [
 ]
 SEMESTERS_PER_DEPT = 8
 
-# --- course catalog: (start_year, end_year, department, semester) -> [(name, cover)] ---
-COURSES: dict[tuple[int, int, str, int], list[tuple[str, str]]] = {
+# --- course catalog: (start_year, end_year, department, semester) -> [(name, cover, professor)] ---
+COURSES: dict[tuple[int, int, str, int], list[tuple[str, str, str]]] = {
     (2022, 2026, "Computer Science", 8): [
-        ("High Performance Computing", "chip"),
-        ("Deep Learning", "network"),
-        ("Natural Language Processing", "code"),
-        ("Image Processing", "world"),
-        ("Advanced Digital Signal Processing", "math"),
-        ("Pattern Recognition", "chemistry"),
-        ("Soft Computing", "book"),
-        ("Business Intelligence", "database"),
-        ("Quantum Computing", "science"),
+        ("High Performance Computing", "chip", "Prof. Anil Deshmukh"),
+        ("Deep Learning", "network", "Prof. Sagar Rane"),
+        ("Natural Language Processing", "code", "Prof. Meena Iyer"),
+        ("Image Processing", "world", "Prof. Rajesh Nair"),
+        ("Advanced Digital Signal Processing", "math", "Prof. Sunita Kulkarni"),
+        ("Pattern Recognition", "chemistry", "Prof. Vikram Patil"),
+        ("Soft Computing", "book", "Prof. Neha Joshi"),
+        ("Business Intelligence", "database", "Prof. Arvind Menon"),
+        ("Quantum Computing", "science", "Prof. Priya Sharma"),
     ],
     (2023, 2027, "Computer Science", 6): [
-        ("Data Science and Big Data Analytics", "database"),
-        ("Web Technology", "code"),
-        ("Artificial Intelligence", "science"),
-        ("Information Security", "law"),
-        ("Augmented and Virtual Reality", "world"),
-        ("Cloud Computing", "network"),
-        ("Software Modeling and Architectures", "chip"),
+        ("Data Science and Big Data Analytics", "database", "Prof. Kiran Rao"),
+        ("Web Technology", "code", "Prof. Pooja Gupta"),
+        ("Artificial Intelligence", "science", "Prof. Suresh Pillai"),
+        ("Information Security", "law", "Prof. Deepa Verma"),
+        ("Augmented and Virtual Reality", "world", "Prof. Rohan Kulkarni"),
+        ("Cloud Computing", "network", "Prof. Manish Agarwal"),
+        ("Software Modeling and Architectures", "chip", "Prof. Sneha Reddy"),
     ],
     (2024, 2028, "Computer Science", 4): [
-        ("Database Management System", "database"),
-        ("Discrete Mathematics", "math"),
-        ("Computer Organization and Microprocessor", "chip"),
-        ("Database Management Lab", "code"),
-        ("Microprocessor Lab", "chemistry"),
-        ("Internet of Things", "network"),
-        ("Web Development", "world"),
+        ("Database Management System", "database", "Prof. Amit Joshi"),
+        ("Discrete Mathematics", "math", "Prof. Lakshmi Narayan"),
+        ("Computer Organization and Microprocessor", "chip", "Prof. Sanjay Mehta"),
+        ("Database Management Lab", "code", "Prof. Ritu Singh"),
+        ("Microprocessor Lab", "chemistry", "Prof. Harish Chandra"),
+        ("Internet of Things", "network", "Prof. Nisha Pawar"),
+        ("Web Development", "world", "Prof. Gaurav Bhat"),
     ],
     (2025, 2029, "Computer Science", 2): [
-        ("Engineering Mathematics - II", "math"),
-        ("Engineering Physics", "science"),
-        ("Basic Electronics Engineering", "chip"),
-        ("Engineering Mechanics", "law"),
-        ("Programming and Problem Solving (PPS)", "code"),
-        ("Project Based Learning / Ideation Labs", "chemistry"),
-        ("Democracy, Election and Governance", "world"),
+        ("Engineering Mathematics - II", "math", "Prof. Shankar Rao"),
+        ("Engineering Physics", "science", "Prof. Vidya Hegde"),
+        ("Basic Electronics Engineering", "chip", "Prof. Mohan Kumar"),
+        ("Engineering Mechanics", "law", "Prof. Asha Nair"),
+        ("Programming and Problem Solving (PPS)", "code", "Prof. Tejas Shah"),
+        ("Project Based Learning / Ideation Labs", "chemistry", "Prof. Kavita Desai"),
+        ("Democracy, Election and Governance", "world", "Prof. Ramesh Iyer"),
     ],
 }
 
@@ -154,10 +154,14 @@ def run() -> None:
             sem = db.scalar(
                 select(Semester).where(Semester.department_id == dept.id, Semester.number == sem_no)
             )
-            for name, cover in subjects:
-                if db.scalar(select(Course).where(Course.semester_id == sem.id, Course.name == name)):
+            for name, cover, professor in subjects:
+                existing = db.scalar(select(Course).where(Course.semester_id == sem.id, Course.name == name))
+                if existing:
+                    # backfill the professor on a course seeded before this field existed
+                    if not existing.professor and professor:
+                        existing.professor = professor
                     continue
-                db.add(Course(teacher_id=admin.id, semester_id=sem.id, name=name, cover=cover))
+                db.add(Course(teacher_id=admin.id, semester_id=sem.id, name=name, cover=cover, professor=professor))
                 counts["courses"] += 1
 
         db.flush()
