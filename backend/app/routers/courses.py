@@ -83,7 +83,7 @@ def list_courses(
     assert_semester_access(db, user, semester_id)
     courses = list(
         db.scalars(
-            select(Course).where(Course.semester_id == semester_id).order_by(Course.created_at.desc())
+            select(Course).where(Course.semester_id == semester_id).order_by(func.lower(Course.name).asc())
         ).all()
     )
     unit_counts = dict(

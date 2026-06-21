@@ -18,6 +18,7 @@ from app.models.department import Department
 from app.models.enums import CommandStatus
 from app.models.semester import Semester
 from app.models.semester_member import SemesterMember
+from app.models.unit import Unit
 from app.models.user import User
 from app.schemas.course import CourseOut
 from app.schemas.department import DepartmentOut, SemesterOut
@@ -88,7 +89,14 @@ def get_semester(
     dept = db.get(Department, sem.department_id)
     courses = list(
         db.scalars(
-            select(Course).where(Course.semester_id == sem.id).order_by(Course.created_at.desc())
+            select(Course).where(Course.semester_id == sem.id).order_by(func.lower(Course.name).asc())
+        ).all()
+    )
+    unit_counts = dict(
+        db.execute(
+            select(Unit.course_id, func.count())
+            .where(Unit.course_id.in_([c.id for c in courses] or [uuid.uuid4()]))
+            .group_by(Unit.course_id)
         ).all()
     )
 
@@ -110,7 +118,12 @@ def get_semester(
         "semester": SemesterOut.model_validate(sem).model_dump(mode="json"),
         "department": DepartmentOut.model_validate(dept).model_dump(mode="json") if dept else None,
         "courses": [
-            {**CourseOut.model_validate(c).model_dump(mode="json"), **counts(c.id)} for c in courses
+            {
+                **CourseOut.model_validate(c).model_dump(mode="json"),
+                "units": unit_counts.get(c.id, 0),
+                **counts(c.id),
+            }
+            for c in courses
         ],
     }
 
