@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/layout/AppHeader";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -81,7 +81,7 @@ export default function SettingsPage() {
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
       <AppHeader />
 
       <main className="mx-auto w-full flex-1 space-y-4 px-6 py-8 lg:px-[10%]">

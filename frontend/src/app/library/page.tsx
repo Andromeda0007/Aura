@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { ResponseView } from "@/components/ai-panel/ResponseView";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { libraryApi, type LibraryItem } from "@/lib/api";
@@ -41,7 +41,7 @@ export default function LibraryPage() {
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
       <AppHeader />
       <div className="mx-auto w-full px-6 pt-8 lg:px-[10%]">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Library</h1>

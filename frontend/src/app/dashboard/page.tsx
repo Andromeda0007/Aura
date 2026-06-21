@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { AppHeader } from "@/components/layout/AppHeader";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -76,7 +76,7 @@ export default function DashboardPage() {
   return (
     <div className="relative flex flex-1 flex-col">
       <OnboardingTour />
-      <Aurora className="opacity-50" />
+      <AppBackdrop />
       <AppHeader />
 
       <main className="mx-auto w-full flex-1 px-6 py-10 lg:px-[10%]">

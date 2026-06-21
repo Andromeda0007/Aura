@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcrumbs";
 import { LevelStatsPanel } from "@/components/stats/LevelStatsPanel";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { batchApi, departmentApi, type DepartmentDetail } from "@/lib/api";
 
@@ -42,7 +42,7 @@ export function DepartmentView({ departmentId }: { departmentId: string }) {
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
       <AppHeader />
 
       <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">

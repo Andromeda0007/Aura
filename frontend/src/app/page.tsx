@@ -10,7 +10,13 @@ export default function Home() {
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
       <Aurora />
 
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
+      {/* a couple of small ghost cards scattered behind the page */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden overflow-hidden lg:block">
+        <LectureCard data={CHEMISTRY} className="absolute left-[1%] top-[54%] w-56 -rotate-6 opacity-[0.1] blur-[1px]" />
+        <LectureCard data={CALCULUS} className="absolute right-[2%] top-[82%] w-56 rotate-6 opacity-[0.1] blur-[1px]" />
+      </div>
+
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pb-5 pt-8">
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary font-semibold text-primary-foreground">
             A
@@ -94,15 +100,15 @@ export default function Home() {
         <h2 className="text-balance font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           One lesson, every format.
         </h2>
-        <p className="mt-2 max-w-md text-pretty text-muted-foreground">
+        <p className="mt-2 max-w-2xl text-pretty text-muted-foreground">
           Ask out loud and Aura reshapes what you just taught — a fillable numerical, a real chemical
           structure, a diagram, a summary.
         </p>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
-          <LectureCard data={CALCULUS} className="shadow-xl shadow-primary/5" />
-          <LectureCard data={CHEMISTRY} className="shadow-xl shadow-primary/5" />
-          <LectureCard data={BLOCKCHAIN} className="shadow-xl shadow-primary/5" />
-          <WhiteboardCard className="shadow-xl shadow-primary/5" />
+        <div className="mt-8 grid auto-rows-fr gap-x-8 gap-y-8 sm:grid-cols-2">
+          <LectureCard data={CALCULUS} className="h-full shadow-xl shadow-primary/5" />
+          <LectureCard data={CHEMISTRY} className="h-full shadow-xl shadow-primary/5" />
+          <LectureCard data={BLOCKCHAIN} className="h-full shadow-xl shadow-primary/5" />
+          <WhiteboardCard className="h-full shadow-xl shadow-primary/5" />
         </div>
       </section>
 
@@ -162,7 +168,7 @@ interface LectureMock {
 
 function LectureCard({ data, className }: { data: LectureMock; className?: string }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-border bg-card", className)}>
+    <div className={cn("flex flex-col overflow-hidden rounded-2xl border border-border bg-card", className)}>
       {/* window bar */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-danger/70" />
@@ -174,7 +180,7 @@ function LectureCard({ data, className }: { data: LectureMock; className?: strin
         </span>
       </div>
 
-      <div className="grid grid-cols-5">
+      <div className="grid flex-1 grid-cols-5">
         {/* faux board */}
         <div className="col-span-3 space-y-3 border-r border-border bg-muted/40 p-5">{data.board}</div>
         {/* Aura result card */}
@@ -195,14 +201,14 @@ function LectureCard({ data, className }: { data: LectureMock; className?: strin
 /** The actual whiteboard with the teacher's ink + two dragged-on Aura cards. */
 function WhiteboardCard({ className }: { className?: string }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-border bg-card", className)}>
+    <div className={cn("flex flex-col overflow-hidden rounded-2xl border border-border bg-card", className)}>
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-danger/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
         <span className="ml-2 text-xs font-medium text-muted-foreground">Whiteboard · drag &amp; drop</span>
       </div>
-      <div className="relative h-60 overflow-hidden bg-muted/30">
+      <div className="relative min-h-44 flex-1 overflow-hidden bg-muted/30">
         {/* graph paper */}
         <svg aria-hidden className="absolute inset-0 h-full w-full text-foreground/6">
           <defs>
@@ -230,7 +236,7 @@ function WhiteboardCard({ className }: { className?: string }) {
         </span>
 
         {/* dragged-on quiz */}
-        <div className="absolute right-3 top-5 w-36 rotate-3 rounded-lg border border-border bg-card p-2 shadow-lg">
+        <div className="absolute right-3 top-2 w-36 rotate-3 rounded-lg border border-border bg-card p-2 shadow-lg">
           <div className="flex items-center gap-1 text-[10px] font-semibold text-accent">
             <Sparkles className="h-3 w-3" /> Quiz
           </div>
@@ -241,7 +247,7 @@ function WhiteboardCard({ className }: { className?: string }) {
         </div>
 
         {/* dragged-on diagram */}
-        <div className="absolute bottom-4 right-7 w-24 -rotate-3 rounded-lg border border-border bg-card p-2 shadow-lg">
+        <div className="absolute bottom-2 right-6 w-24 -rotate-3 rounded-lg border border-border bg-card p-2 shadow-lg">
           <div className="flex items-center gap-1 text-[10px] font-semibold text-accent">
             <Sparkles className="h-3 w-3" /> Diagram
           </div>
@@ -249,6 +255,26 @@ function WhiteboardCard({ className }: { className?: string }) {
             <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth={2} className="h-9 w-9 text-foreground">
               <polygon points="20,4 34,12 34,28 20,36 6,28 6,12" />
               <circle cx="20" cy="20" r="7" strokeDasharray="2 3" />
+            </svg>
+          </div>
+        </div>
+
+        {/* dragged-on binary tree (center) */}
+        <div className="absolute left-[46%] top-1/2 w-24 -translate-x-1/2 -translate-y-1/2 -rotate-2 rounded-lg border border-border bg-card p-2 shadow-lg">
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-accent">
+            <Sparkles className="h-3 w-3" /> Tree
+          </div>
+          <div className="grid place-items-center py-0.5">
+            <svg viewBox="0 0 100 70" fill="none" stroke="currentColor" strokeWidth={2} className="h-9 w-20 text-foreground">
+              <line x1="50" y1="12" x2="26" y2="40" />
+              <line x1="50" y1="12" x2="74" y2="40" />
+              <line x1="26" y1="40" x2="14" y2="62" />
+              <line x1="26" y1="40" x2="38" y2="62" />
+              <circle cx="50" cy="12" r="6" />
+              <circle cx="26" cy="40" r="6" />
+              <circle cx="74" cy="40" r="6" />
+              <circle cx="14" cy="62" r="6" />
+              <circle cx="38" cy="62" r="6" />
             </svg>
           </div>
         </div>

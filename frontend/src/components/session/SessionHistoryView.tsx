@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ResponseView } from "@/components/ai-panel/ResponseView";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Breadcrumbs, batchTitle, type Crumb } from "@/components/layout/Breadcrumbs";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { batchApi, courseApi, semesterApi, sessionApi, unitApi } from "@/lib/api";
 import type { AIResponse } from "@/types";
 
@@ -84,7 +84,7 @@ export function SessionHistoryView({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
       <AppHeader />
 
       <main className="mx-auto w-full flex-1 px-6 py-8 lg:px-[10%]">

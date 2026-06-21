@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 
 export default function NotFound() {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
       <p className="font-display text-7xl font-semibold tracking-tight">404</p>
       <p className="mt-3 text-lg text-muted-foreground">This page wandered off the board.</p>
       <Link

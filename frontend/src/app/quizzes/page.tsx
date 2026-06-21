@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/layout/AppHeader";
-import { Aurora } from "@/components/ui/aurora";
+import { AppBackdrop } from "@/components/ui/app-backdrop";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { quizApi, type QuizResults, type QuizSummary } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ export default function QuizzesPage() {
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <Aurora className="opacity-40" />
+      <AppBackdrop />
 
       <AppHeader />
 

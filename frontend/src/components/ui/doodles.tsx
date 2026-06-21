@@ -29,7 +29,7 @@ const ICONS: { Icon: typeof Atom; c: string }[] = [
   { Icon: Scale, c: "left-[20%] top-[44%] h-12 w-12 rotate-6" },
   { Icon: Orbit, c: "right-[26%] bottom-[34%] h-14 w-14 rotate-6" },
   { Icon: Brain, c: "left-[25%] bottom-[27%] h-12 w-12 rotate-6" },
-  { Icon: Binary, c: "right-[18%] top-[40%] h-12 w-12 -rotate-6" },
+  { Icon: Binary, c: "right-[20%] top-[40%] h-12 w-12 -rotate-6" },
   { Icon: Globe, c: "right-[43%] top-[16%] h-12 w-12 -rotate-6" },
   { Icon: Telescope, c: "left-[6%] bottom-[40%] h-12 w-12 rotate-6" },
   { Icon: Landmark, c: "left-[62%] bottom-[8%] h-12 w-12 rotate-3" },
@@ -51,9 +51,9 @@ const TEXTS: { t: string; c: string }[] = [
   { t: "∂f/∂x", c: "left-[3%] bottom-[24%] font-display italic text-xl rotate-12" },
   { t: "f′(x)", c: "right-[48%] top-[44%] font-display italic text-lg -rotate-6" },
   { t: "θ = tan⁻¹(y/x)", c: "left-[58%] bottom-[30%] font-display italic text-sm rotate-3" },
-  { t: "πr²", c: "left-[50%] top-[6%] font-display italic text-xl -rotate-3" },
+  { t: "πr²", c: "left-[50%] top-[6%] font-display italic text-4xl -rotate-3" },
   { t: "8  3  10  1  6", c: "right-[44%] top-[38%] font-mono text-sm rotate-3" },
-  { t: "0110 1011 0010", c: "left-[54%] top-[34%] font-mono text-sm -rotate-6" },
+  { t: "0110 1011 0010", c: "right-[15%] bottom-[15%] font-mono text-sm -rotate-3" },
   { t: "2 3 5 7 11 13", c: "right-[22%] bottom-[9%] font-mono text-sm rotate-6" },
   { t: "√2 ≈ 1.41421", c: "left-[44%] bottom-[40%] font-mono text-sm -rotate-3" },
 ];
@@ -82,7 +82,7 @@ export function DoodleIcons() {
 
       {/* binary tree sketch */}
       <svg viewBox="0 0 100 86" fill="none" stroke="currentColor" strokeWidth={2}
-        className={cn(svgBase, "right-[15%] bottom-[14%] h-20 w-24 -rotate-3")}>
+        className={cn(svgBase, "right-[16%] top-[36%] h-20 w-24 -rotate-3")}>
         <line x1="50" y1="16" x2="28" y2="46" />
         <line x1="50" y1="16" x2="72" y2="46" />
         <line x1="28" y1="46" x2="16" y2="74" />
@@ -100,6 +100,20 @@ export function DoodleIcons() {
       <svg viewBox="0 0 120 40" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"
         className={cn(svgBase, "left-[63%] top-[24%] h-12 w-32 rotate-6")}>
         <path d="M4 20 Q19 0 34 20 T64 20 T94 20 T118 20" />
+      </svg>
+
+      {/* second binary tree sketch (replaces the binary-digit scatter) */}
+      <svg viewBox="0 0 100 86" fill="none" stroke="currentColor" strokeWidth={2}
+        className={cn(svgBase, "left-[53%] top-[30%] h-16 w-20 -rotate-6")}>
+        <line x1="50" y1="16" x2="28" y2="46" />
+        <line x1="50" y1="16" x2="72" y2="46" />
+        <line x1="28" y1="46" x2="16" y2="74" />
+        <line x1="28" y1="46" x2="40" y2="74" />
+        <circle cx="50" cy="14" r="7" />
+        <circle cx="28" cy="46" r="7" />
+        <circle cx="72" cy="46" r="7" />
+        <circle cx="16" cy="76" r="7" />
+        <circle cx="40" cy="76" r="7" />
       </svg>
 
       {/* node graph */}
