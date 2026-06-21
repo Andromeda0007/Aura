@@ -1,11 +1,11 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, Printer, Star } from "lucide-react";
-import Link from "next/link";
+import { Printer, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { sessionApi, type SessionReport } from "@/lib/api";
@@ -25,13 +25,7 @@ export function ReportView({ sessionId }: { sessionId: string }) {
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b border-border px-6 py-4 print:hidden">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <BackButton />
           <h1 className="font-semibold">Class report</h1>
         </div>
         <Button variant="outline" size="sm" onClick={() => window.print()}>

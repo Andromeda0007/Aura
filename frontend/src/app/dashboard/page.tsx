@@ -109,7 +109,7 @@ export default function DashboardPage() {
         )}
 
         {/* Admin: batches grid. Teacher: their class (semester) grid. */}
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {isAdmin ? (
             batches.length === 0 ? (
               <Empty icon={GraduationCap} title="No batches yet" body="Create an admission batch (e.g. 2022–2026) to add departments." />

@@ -107,7 +107,7 @@ export default function LoginPage() {
               <Input
                 id="email" type="email" autoComplete="email" required
                 value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="Enter your email"
               />
             </div>
             <div className="space-y-1.5">
@@ -115,7 +115,7 @@ export default function LoginPage() {
               <PasswordInput
                 id="password" autoComplete="current-password" required
                 value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
               />
             </div>
           </div>

@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Pause, Play, RotateCcw } from "lucide-react";
-import Link from "next/link";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ResponseView } from "@/components/ai-panel/ResponseView";
+import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { sessionApi } from "@/lib/api";
@@ -76,13 +76,7 @@ export function ReplayView({ sessionId }: { sessionId: string }) {
     <div className="relative flex h-dvh flex-col">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="grid h-9 w-9 place-items-center rounded-full border border-border transition-colors hover:bg-muted"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <BackButton />
           <div>
             <p className="font-semibold">Replay · {subject}</p>
             <p className="text-xs text-muted-foreground">

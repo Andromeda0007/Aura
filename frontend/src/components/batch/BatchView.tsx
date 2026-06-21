@@ -93,7 +93,7 @@ export function BatchView({ batchId }: { batchId: string }) {
           <LevelStatsPanel load={() => batchApi.stats(batchId)} />
         </div>
 
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {depts.length === 0 ? (
             <div className="col-span-full rounded-2xl border border-dashed border-border p-12 text-center">
               <Layers className="mx-auto h-8 w-8 text-muted-foreground" />
